@@ -18,11 +18,17 @@ import { HEROES, DUP_FRAGS, chapterMul } from '../meta/heroes.js';
 import { drawSignin, hitSignin } from '../render/signin.js';
 import { claimSignin, signinClaimable } from '../meta/signin.js';
 import { toast } from '../render/ui.js';
+import { spendStamina, regenStamina, BATTLE_COST, STAMINA_MAX } from '../meta/stamina.js';
+import { grantMonthlyDaily } from '../meta/iap.js';
+import { todayStr } from '../meta/save.js';
+import { setSkin, currentSkin } from '../render/theme.js';
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
   const save = loadSave();
   touchDaily(save); // 跨日重置免费抽计数
+  setSkin(save.cosmetics.skin || 'ink');       // 启动恢复皮肤
+  if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
   let screen = 'home';        // home | detail | gacha | battle | result | signin
   let selectedHero = 'zhaoyun';
@@ -91,6 +97,27 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'battle') startBattle(save.progress.chapter);
       if (hit.action === 'signin') screen = 'signin';
       if (hit.action === 'shop') { screen = 'shop'; shopPick = null; }
+      if (hit.action === 'skin' && !adBusy) {
+        if (!save.cosmetics.shadowOwned) {
+          adBusy = true;
+          showRewarded('skin', {
+            onReward() {
+              adBusy = false;
+              save.cosmetics.shadowOwned = true;
+              save.cosmetics.skin = 'shadow';
+              setSkin('shadow');
+              persistSave(save);
+              showToast('皮影戏皮肤已解锁');
+            },
+            onFail() { adBusy = false; },
+          });
+        } else {
+          save.cosmetics.skin = currentSkin() === 'shadow' ? 'ink' : 'shadow';
+          setSkin(save.cosmetics.skin);
+          persistSave(save);
+          showToast(save.cosmetics.skin === 'shadow' ? '已换装 · 皮影戏' : '已换装 · 写实水墨');
+        }
+      }
     } else if (screen === 'detail') {
       if (hit.action === 'back') screen = 'home';
       if (hit.action === 'levelUp') { levelUp(save, selectedHero); persistSave(save); }
@@ -206,6 +233,12 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   // ===== 战斗 =====
   function startBattle(chapterN) {
+    regenStamina(save);
+    if (!spendStamina(save, BATTLE_COST)) {
+      showToast(`体力不足（${save.wallet.stamina}/${STAMINA_MAX}）· 每 5 分钟恢复 1 点`);
+      return;
+    }
+    persistSave(save);
     // 首版战斗固定赵云上阵；注入局外攻击乘区与章节敌军 hp 系数
     const bonus = { atkMul: atkMul(save, 'zhaoyun'), chapterMul: chapterMul(chapterN) };
     battleState = createBattle(20260304 + chapterN, bonus);
@@ -262,6 +295,11 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   // ===== 帧循环：战斗屏推演，其余屏重绘 =====
   function loop(now) {
     if (!last) last = now; // 首帧校准（wx 环境无 performance.now 也不依赖它）
+    if (save.daily.date !== todayStr()) { // 跨日：免费抽/签到重置 + 月卡发放
+      touchDaily(save);
+      grantMonthlyDaily(save);
+      persistSave(save);
+    }
     const dtMs = Math.min(now - last, 100); // 切后台回来防大步积压
     last = now;
     if (screen === 'battle') {
