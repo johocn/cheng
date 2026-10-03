@@ -25,7 +25,7 @@ export function drawBattle(ctx, state) {
   drawLanes(ctx);
   for (const e of state.enemies) {
     const p = pathPoint(e.lane, e.t);
-    Art.drawEnemyToken(ctx, p.x, p.y, 26, e.type, e.hp / e.hpMax);
+    Art.drawEnemyToken(ctx, p.x, p.y, 26, e.type, e.hp / e.hpMax, e.affix);
     drawStatusMarks(ctx, p, e);
   }
   Art.drawHeroToken(ctx, HERO_POS.x, HERO_POS.y, 34, 1);

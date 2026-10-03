@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { startWave, updateWave } from '../../src/engine/wave.js';
+import { spawnEnemy } from '../../src/engine/enemy.js';
+import { createRng } from '../../src/engine/rng.js';
 import {
-  WAVE_COMPS, TOTAL_WAVES, ENEMY_GROWTH, SPAWN_GAP_MIN, ENEMY_TYPES,
+  WAVE_COMPS, TOTAL_WAVES, ENEMY_GROWTH, SPAWN_GAP_MIN, ENEMY_TYPES, AFFIXES, BOSS_WAVES,
 } from '../../src/engine/config.js';
 
 function makeState(wave = 1) {
@@ -12,6 +14,7 @@ function makeState(wave = 1) {
     spawnQueue: [],
     enemies: [],
     nextEnemyId: 1,
+    rng: createRng(1),
   };
 }
 
@@ -25,7 +28,7 @@ describe('startWave — WAVE_COMPS 生成', () => {
     expect(s.stage).toBe('wave');
     expect(s.stageClock).toBe(0);
     expect(s.spawnQueue).toHaveLength(compCount(1)); // w1: 8 bing
-    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1, chMul: 1 }); // chMul：M3 章节系数，无注入时默认 ×1
+    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1, chMul: 1, affix: null }); // chMul：M3 章节系数默认 ×1；affix：M6 词缀（权重 0 恒 null）
   });
 
   it('按组成表生成类型与数量，lane i%3 轮转', () => {
@@ -103,5 +106,40 @@ describe('updateWave — wave 阶段', () => {
     s2.stage = 'over';
     updateWave(s2, 10);
     expect(s2.stage).toBe('over');
+  });
+});
+
+describe('M6 精英词缀', () => {
+  it('词缀表定义', () => {
+    expect(AFFIXES.iron).toMatchObject({ label: '壁', hpMul: 1.6 });
+    expect(AFFIXES.swift).toMatchObject({ label: '行', speedMul: 1.4 });
+    expect(AFFIXES.sharp).toMatchObject({ label: '锋', dmgBonus: 2 });
+  });
+
+  it('BOSS 波刷怪必带词缀；章节权重 0 的非 BOSS 波必不带（?? 0 缺省对照）', () => {
+    const s = makeState(BOSS_WAVES[0]); // 第 10 波
+    s.chapterPackRate = 0;
+    startWave(s);
+    while (s.spawnQueue.length) {
+      const ev = s.spawnQueue.shift();
+      spawnEnemy(s, ev.type, ev.lane, ev.mul, ev.chMul, ev.affix);
+    }
+    expect(s.enemies.length).toBeGreaterThan(0);
+    expect(s.enemies.every((e) => e.affix)).toBe(true); // BOSS 波全部带词缀
+    // 对照样例：非 BOSS 波未注入 chapterPackRate（缺省 ?? 0）→ 全部无词缀
+    const s2 = makeState(1);
+    startWave(s2);
+    expect(s2.spawnQueue.every((ev) => !ev.affix)).toBe(true);
+  });
+
+  it('词缀乘区落进敌人属性', () => {
+    const s = makeState(1);
+    spawnEnemy(s, 'bing', 0, 1, 1, 'iron');
+    expect(s.enemies[0].hp).toBeCloseTo(ENEMY_TYPES.bing.hp * 1.6, 5);
+    expect(s.enemies[0].hpMax).toBeCloseTo(ENEMY_TYPES.bing.hp * 1.6, 5);
+    spawnEnemy(s, 'bing', 1, 1, 1, 'swift');
+    expect(s.enemies[1].speedMul).toBeCloseTo(1.4, 5);
+    spawnEnemy(s, 'bing', 2, 1, 1, 'sharp');
+    expect(s.enemies[2].dmgBonus).toBe(2);
   });
 });

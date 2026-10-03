@@ -28,6 +28,14 @@ export const SIEGE_RANGE = 260;   // 距英雄剩余路径长阈值（停驻轰�
 export const SIEGE_INTERVAL = 3;  // 轰击周期秒
 export const SIEGE_DMG = 1;       // 轰击基础扣守军（词缀 sharp 在 spawnEnemy 折入 e.dmgBonus）
 
+// ===== M6 精英词缀 =====
+export const AFFIXES = {
+  iron:  { label: '壁', hpMul: 1.6 },
+  swift: { label: '行', speedMul: 1.4 },
+  sharp: { label: '锋', dmgBonus: 2 },
+};
+export const AFFIX_KEYS = ['iron', 'swift', 'sharp'];
+
 // 三条进攻路径（折线拐点），均终于 HERO_POS
 export const LANES = [
   [{ x: 360, y: -40 }, { x: 360, y: 640 }],

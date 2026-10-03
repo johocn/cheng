@@ -39,16 +39,17 @@ export function pathPoint(laneIdx, t) {
 
 export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = null) {
   const def = ENEMY_TYPES[type];
+  const iron = affix === 'iron' ? 1.6 : 1;
   state.enemies.push({
     id: state.nextEnemyId++,
     type,
     lane: laneIdx,
     t: 0,
-    hp: def.hp * mul * hpMul,    // hpMul：章节敌方 hp 系数（M3 局外注入）
-    hpMax: def.hp * mul * hpMul,
-    speedMul: mul, // 速度成长与 slow/stun 合成在 moveEnemies（不随章节系数放大）
-    dmgBonus: 0,   // 词缀 sharp 加成预留位（M6 Task 3 折入）
-    affix,         // 精英词缀存储位（乘区在 Task 3）
+    hp: def.hp * mul * hpMul * iron,           // iron 词缀：铁壁 hp ×1.6
+    hpMax: def.hp * mul * hpMul * iron,
+    speedMul: mul * (affix === 'swift' ? 1.4 : 1), // swift 词缀：疾行速度 ×1.4
+    dmgBonus: affix === 'sharp' ? 2 : 0,       // sharp 词缀：漏怪/轰击伤害 +2
+    affix,
     siegeClock: 0, // 投石车轰击计时
     slowT: 0, stunT: 0, burnT: 0,
   });

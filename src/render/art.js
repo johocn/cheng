@@ -72,7 +72,10 @@
   // type: 'bing'|'qi'|'gong'|'shuai'; hpRatio: 0~1
   var ENEMY_TEXT = { bing: '兵', qi: '骑', gong: '弓', shuai: '帅' };
 
-  function drawEnemyToken(ctx, x, y, r, type, hpRatio) {
+  // M6 精英词缀角标印文（key 与 engine/config.js AFFIX_KEYS 一致）
+  var AFFIX_TEXT = { iron: '壁', swift: '行', sharp: '锋' };
+
+  function drawEnemyToken(ctx, x, y, r, type, hpRatio, affix) {
     type = type || 'bing';
     var elite = type === 'shuai';
     var rr = elite ? r * 1.12 : r;
@@ -106,6 +109,10 @@
       ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = C.seal;
       ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, hpRatio)), bh);
+    }
+    // M6 精英词缀：右上角标小印（鎏金）
+    if (affix && AFFIX_TEXT) {
+      sealStamp(ctx, x + rr * 0.82, y - rr * 0.82, Math.max(10, r * 0.5), AFFIX_TEXT[affix] || '精', 'gold', 8);
     }
   }
 
@@ -517,6 +524,7 @@
     drawQualityTag: drawQualityTag,
     drawStars: drawStars,
     sealStamp: sealStamp,
-    roundRect: roundRect
+    roundRect: roundRect,
+    AFFIX_TEXT: AFFIX_TEXT
   };
 })(typeof window !== 'undefined' ? window : globalThis);
