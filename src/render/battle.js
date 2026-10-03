@@ -18,7 +18,7 @@ const SLOT_X0 = 30, SLOT_Y = 1112, SLOT_W = 72, SLOT_H = 96, SLOT_STEP = 84;
 const ULT_CX = 600, ULT_CY = 985, ULT_R = 52;
 
 export function drawBattle(ctx, state) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   const shaken = state.ult ? beginUltShake(ctx, state) : false; // 大招尾段屏抖（save+translate）
   Art.drawBattleBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
   drawLanes(ctx);
@@ -53,7 +53,7 @@ function drawLanes(ctx) {
 }
 
 function drawHud(ctx, state) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   Art.drawHudPill(ctx, 24, 24, 200, 44, `守军 ${state.hp}/${state.hpMax}`, 'ink');
   Art.drawHudPill(ctx, 260, 24, 130, 44, `第 ${state.wave || 1}/${TOTAL_WAVES} 波`, 'bronze');
   Art.drawHudPill(ctx, LOGICAL_W - 24 - 130, 24, 130, 44, `金 ${state.coins}`, 'gold');
@@ -61,7 +61,7 @@ function drawHud(ctx, state) {
 
 // 15 波进度条：y=84 h=8 朱红填充 wave/15
 function drawWaveProgress(ctx, state) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   const x = 24, y = 84, w = LOGICAL_W - 48, h = 8;
   Art.roundRect(ctx, x, y, w, h, 4);
   ctx.fillStyle = 'rgba(31,27,22,0.18)';
@@ -86,7 +86,7 @@ function drawSlots(ctx, state) {
 }
 
 function drawSlotCell(ctx, x, y, w, h, item, mergeable) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   ctx.save();
   if (!item) { // 空格：虚线框
     ctx.setLineDash([7, 5]);
@@ -192,7 +192,7 @@ function drawUltButton(ctx, state) {
 
 // 兵法三择弹窗：暗幕全屏 → 面板 (60,88,600,452) + 三卡 (72/272/472, 216, 176×252)
 function drawSkillPick(ctx, state) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   ctx.save();
   ctx.fillStyle = 'rgba(31,27,22,0.92)';
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -213,7 +213,7 @@ function drawSkillPick(ctx, state) {
 }
 
 function drawPickCard(ctx, x, y, w, h, skill) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   const rc = RARITY_COLORS[skill.rarity] || RARITY_COLORS[0];
   ctx.save();
   const g = ctx.createLinearGradient(x, y, x, y + h);
@@ -300,7 +300,7 @@ function drawStatusMarks(ctx, p, e) {
 function drawStageBanner(ctx, state) {
   const cx = LOGICAL_W / 2;
   const cy = LOGICAL_H * 0.42;
-  const Art = window.Art;
+  const Art = globalThis.Art;
   if (state.stage === 'interval' && state.wave === 0) {
     banner(ctx, cx, cy, '长坂坡 · 备战', `第 1 波即将来袭`);
   } else if (state.stage === 'interval') {
@@ -313,7 +313,7 @@ function drawStageBanner(ctx, state) {
 }
 
 function banner(ctx, cx, cy, title, sub) {
-  const Art = window.Art;
+  const Art = globalThis.Art;
   Art.drawPanel(ctx, cx - 190, cy - 54, 380, 108, false);
   const fs = 44;
   ctx.fillStyle = '#1f1b16';
