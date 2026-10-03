@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>七进七出 · 儿童绘画风格人物动画预览</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at 50% 0%, #fff8e8 0%, #f5e9cd 60%);
+    color: #4a3728;
+    font-family: "KaiTi", "STKaiti", "楷体", serif;
+    padding: 20px;
+  }
+  h1 { text-align: center; color: #c93a2c; letter-spacing: 8px; font-size: 24px; }
+  .sub { text-align: center; color: #8c7856; font-size: 13px; letter-spacing: 3px; margin: 4px 0 20px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; max-width: 1100px; margin: 0 auto; }
+  .cell {
+    background: #fffdf5;
+    border: 3px solid #4a3728;
+    box-shadow: 4px 4px 0 rgba(74,55,40,0.2);
+    border-radius: 14px; padding: 12px; text-align: center;
+  }
+  .cell h2 { font-size: 14px; color: #c93a2c; letter-spacing: 4px; margin-bottom: 8px; text-align: left; }
+  canvas { display: block; }
+  footer { text-align: center; color: #a89272; font-size: 12px; margin-top: 18px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<h1>童趣版 · 四十五度人物</h1>
+<div class="sub">儿童绘画风格 · 粗轮廓 · 蜡笔亮色 · 大头Q版 · 零图片资源</div>
+
+<div class="grid">
+  <div class="cell"><h2>行军方阵（行走循环）</h2><canvas id="c-march" width="640" height="130"></canvas></div>
+  <div class="cell"><h2>三径迎敌（战场实况）</h2><canvas id="c-lanes" width="640" height="230"></canvas></div>
+  <div class="cell"><h2>赵云 · 待机 / 突刺 / 大招</h2><canvas id="c-hero" width="640" height="160"></canvas></div>
+</div>
+
+<footer>轮廓 #4a3728 · 蓝 步兵 · 橙 弓兵 · 紫 战马 · 红 帅与赵云披风 · 黄 金饰</footer>
+
+<script src="../../render/characters-kids.js"></script>
+<script>
+(function () {
+  var CK = window.CharactersKids;
+
+  var march = document.getElementById('c-march').getContext('2d');
+  var lanes = document.getElementById('c-lanes').getContext('2d');
+  var hero = document.getElementById('c-hero').getContext('2d');
+
+  function drawMarch(t) {
+    march.clearRect(0, 0, 640, 130);
+    var p = (t / 900) % 1;
+    CK.drawSpearmanKids(march, 80, 96, 1.6, p, true);
+    CK.drawArcherKids(march, 210, 96, 1.6, (p + 0.25) % 1, true);
+    CK.drawCavalryKids(march, 352, 100, 1.5, p, true);
+    CK.drawEliteKids(march, 505, 98, 1.5, (p + 0.5) % 1, true);
+  }
+
+  function drawLanes(t) {
+    lanes.clearRect(0, 0, 640, 230);
+    // 奶油纸底
+    var g = lanes.createLinearGradient(0, 0, 0, 230);
+    g.addColorStop(0, '#fff8e8'); g.addColorStop(1, '#f0e2c0');
+    lanes.fillStyle = g;
+    lanes.fillRect(0, 0, 640, 230);
+    // 童趣远山（三个绿丘）
+    [['#a8d8a0', 90, 74, 150], ['#8cc88a', 320, 66, 180], ['#a8d8a0', 550, 76, 140]].forEach(function (m) {
+      lanes.fillStyle = m[0];
+      lanes.strokeStyle = '#4a3728';
+      lanes.lineWidth = 2.5;
+      lanes.beginPath();
+      lanes.ellipse(m[1], m[2] + 40, m[3], m[2], 0, Math.PI, 0);
+      lanes.closePath();
+      lanes.fill();
+      lanes.stroke();
+    });
+    // 太阳
+    lanes.fillStyle = '#f7c948';
+    lanes.strokeStyle = '#4a3728';
+    lanes.lineWidth = 2.5;
+    lanes.beginPath();
+    lanes.arc(580, 46, 20, 0, Math.PI * 2);
+    lanes.fill();
+    lanes.stroke();
+    // 墨径（棕色虚线）
+    lanes.strokeStyle = 'rgba(140,120,90,0.6)';
+    lanes.lineWidth = 3;
+    lanes.setLineDash([8, 8]);
+    [0.2, 0.5, 0.8].forEach(function (px) {
+      lanes.beginPath();
+      lanes.moveTo(640 * px, 84);
+      lanes.lineTo(640 * px, 158);
+      lanes.stroke();
+    });
+    lanes.setLineDash([]);
+    // 敌人下行
+    function laneY(offset) { return 90 + ((t / 14 + offset) % 68); }
+    CK.drawSpearmanKids(lanes, 128, laneY(0), 1.25, (t / 900) % 1, true);
+    CK.drawCavalryKids(lanes, 320, laneY(30), 1.15, (t / 780) % 1, true);
+    CK.drawArcherKids(lanes, 512, laneY(52), 1.25, (t / 900) % 1, true);
+    // 赵云
+    CK.drawZhaoyunKids(lanes, 320, 212, 1.15, (t / 2400) % 1, 'idle');
+  }
+
+  function drawHero(t) {
+    hero.clearRect(0, 0, 640, 160);
+    var slow = (t / 2400) % 1;
+    var atkPhase = (t % 1100) / 1100;
+    CK.drawZhaoyunKids(hero, 110, 136, 1.7, slow, 'idle');
+    CK.drawZhaoyunKids(hero, 320, 136, 1.7, atkPhase, 'attack');
+    CK.drawZhaoyunKids(hero, 530, 136, 1.7, (t / 1400) % 1, 'ult');
+    hero.fillStyle = '#8c7856';
+    hero.font = '13px "KaiTi",serif';
+    hero.textAlign = 'center';
+    hero.fillText('待机', 110, 156);
+    hero.fillText('突刺（循环）', 320, 156);
+    hero.fillText('大招蓄势', 530, 156);
+  }
+
+  function frame(t) {
+    drawMarch(t);
+    drawLanes(t);
+    drawHero(t);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
