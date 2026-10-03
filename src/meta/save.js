@@ -1,11 +1,15 @@
 // src/meta/save.js — 局外存档：localStorage / wx.setStorageSync 同构适配
-// 结构（spec 第七章）：{ v, wallet, heroes, progress, daily }
+// 结构（spec 第七章 + M5 扩展）：{ v, wallet, heroes, progress, daily, iap, cosmetics }
 const KEY = 'qqc_save_v1';
+
+export function defaultIap() {
+  return { firstCharge: false, monthly: false, monthlyLastClaim: '', pass: false, fund: false, fundChapters: [] };
+}
 
 export function defaultSave() {
   return {
     v: 1,
-    wallet: { coins: 500, diamonds: 300, stamina: 60 }, // stamina M5 启用
+    wallet: { coins: 500, diamonds: 300, stamina: 60, staminaTs: 0 },
     heroes: {
       zhaoyun: { owned: true, stars: 1, level: 1, frags: 0 },
       guanyu: { owned: false, stars: 1, level: 1, frags: 0 },
@@ -16,11 +20,13 @@ export function defaultSave() {
       lvbu: { owned: false, stars: 1, level: 1, frags: 0 },
     },
     progress: { chapter: 1, chapterClear: 0, waveBest: 0 },
-    daily: { freePulls: 0, date: today() },
+    daily: { freePulls: 0, signinCount: 0, signinClaimedDate: null, date: todayStr() },
+    iap: defaultIap(),
+    cosmetics: { skin: 'ink', shadowOwned: false },
   };
 }
 
-function today() { return new Date().toISOString().slice(0, 10); }
+export function todayStr() { return new Date().toISOString().slice(0, 10); }
 
 // 存储适配：微信小游戏无 DOM，wx 同构；测试可注入
 function storage() {
@@ -46,16 +52,24 @@ export function loadSave() {
     if (!raw) return defaultSave();
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.v !== 1 || !parsed.wallet || !parsed.heroes) return defaultSave();
+    // M5 字段补齐（旧档迁移，向后兼容）
+    parsed.wallet.stamina ??= 60;
+    parsed.wallet.staminaTs ??= 0;
+    parsed.daily = { ...defaultSave().daily, ...parsed.daily };
+    parsed.daily.signinCount ??= 0;
+    parsed.daily.signinClaimedDate ??= null;
+    parsed.iap = { ...defaultIap(), ...(parsed.iap || {}) };
+    parsed.cosmetics = { skin: 'ink', shadowOwned: false, ...(parsed.cosmetics || {}) };
     return parsed;
   } catch {
     return defaultSave();
   }
 }
 
-// 每日重置（免费抽 3 次/日）；同日幂等
+// 每日重置（免费抽/当日签到）；累计签到天数跨日保留
 export function touchDaily(save) {
-  const t = today();
+  const t = todayStr();
   if (save.daily.date !== t) {
-    save.daily = { freePulls: 0, date: t };
+    save.daily = { freePulls: 0, signinCount: save.daily.signinCount || 0, signinClaimedDate: null, date: t };
   }
 }
