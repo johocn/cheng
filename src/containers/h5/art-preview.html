@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>七进七出 · V3 程序化素材预览</title>
+<style>
+  :root {
+    --paper: #e8dcc4; --ink: #1f1b16; --ink-mid: #3a332a;
+    --bronze: #8b6914; --gold: #c9a227; --seal: #9e2a1e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at 50% 0%, #2c2720 0%, var(--ink) 60%);
+    color: var(--paper);
+    font-family: "KaiTi", "STKaiti", "楷体", serif;
+    padding: 20px;
+  }
+  h1 { text-align: center; color: var(--gold); letter-spacing: 8px; font-size: 24px; margin-bottom: 4px; }
+  .sub { text-align: center; color: #9a8f7c; font-size: 13px; letter-spacing: 3px; margin-bottom: 24px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; max-width: 1100px; margin: 0 auto; }
+  .cell {
+    background: linear-gradient(180deg, #332d24, #221e18);
+    border: 1px solid var(--bronze);
+    box-shadow: inset 0 0 0 1px rgba(201,162,39,.25);
+    border-radius: 6px; padding: 12px;
+  }
+  .cell h2 { font-size: 14px; color: var(--gold); letter-spacing: 4px; margin-bottom: 10px; border-left: 3px solid var(--seal); padding-left: 8px; }
+  canvas { display: block; }
+  .phone {
+    width: 320px; border: 5px solid #000; border-radius: 28px; overflow: hidden; position: relative;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5); margin: 0 auto;
+  }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 90px; height: 18px; background: #000; border-radius: 0 0 10px 10px; z-index: 5; }
+  footer { text-align: center; color: #6f6553; font-size: 12px; margin-top: 24px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<h1>七进七出</h1>
+<div class="sub">V3 写实水墨 · 程序化素材库预览 · 零图片资源</div>
+
+<div class="grid">
+  <div class="cell"><h2>敌军单位</h2><canvas id="c-enemy" width="330" height="120"></canvas></div>
+  <div class="cell"><h2>英雄赵云</h2><canvas id="c-hero" width="220" height="170"></canvas></div>
+  <div class="cell"><h2>锦囊图标</h2><canvas id="c-brocade" width="380" height="110"></canvas></div>
+  <div class="cell"><h2>锦囊槽（可三合一）</h2><canvas id="c-slots" width="380" height="70"></canvas></div>
+  <div class="cell"><h2>战斗界面整装</h2>
+    <div class="phone"><div class="notch"></div><canvas id="c-battle" width="310" height="620"></canvas></div>
+  </div>
+  <div class="cell"><h2>技能卡三选一</h2><canvas id="c-cards" width="380" height="240"></canvas></div>
+  <div class="cell"><h2>点将台</h2><canvas id="c-roster" width="380" height="300"></canvas></div>
+  <div class="cell"><h2>HUD 印章牌</h2><canvas id="c-hud" width="380" height="90"></canvas></div>
+</div>
+
+<footer>宣纸 #e8dcc4 · 墨 #1f1b16 · 古铜 #8b6914 · 暗金 #c9a227 · 朱砂 #9e2a1e · 嵌玉 #4a6b52</footer>
+
+<script src="../../render/art.js"></script>
+<script>
+(function () {
+  var A = window.Art;
+
+  // 敌军：兵/骑/弓/帅
+  (function () {
+    var ctx = document.getElementById('c-enemy').getContext('2d');
+    var types = ['bing', 'qi', 'gong', 'shuai'];
+    var hps = [1, 0.45, 1, 0.8];
+    for (var i = 0; i < 4; i++) {
+      A.drawEnemyToken(ctx, 45 + i * 82, 52, 30, types[i], hps[i]);
+    }
+    ctx.fillStyle = A.C.paperDeep; ctx.font = '12px "KaiTi",serif'; ctx.textAlign = 'center';
+    var names = ['步兵', '骑兵', '弓兵', '精英·帅'];
+    for (var j = 0; j < 4; j++) ctx.fillText(names[j], 45 + j * 82, 108);
+  })();
+
+  // 英雄
+  (function () {
+    var ctx = document.getElementById('c-hero').getContext('2d');
+    A.drawHeroToken(ctx, 110, 92, 46, 0.75);
+  })();
+
+  // 锦囊大图标
+  (function () {
+    var ctx = document.getElementById('c-brocade').getContext('2d');
+    var types = ['qing', 'xuan', 'bai', 'zhu', 'ji'];
+    for (var i = 0; i < 5; i++) {
+      A.drawBrocadeIcon(ctx, 42 + i * 76, 46, 32, types[i]);
+    }
+  })();
+
+  // 锦囊槽
+  (function () {
+    var ctx = document.getElementById('c-slots').getContext('2d');
+    var seq = ['qing', 'qing', 'qing', 'xuan', 'zhu', 'bai', null, null];
+    for (var i = 0; i < 8; i++) {
+      var merge = (i >= 0 && i <= 2);
+      A.drawBrocadeSlot(ctx, 28 + i * 46, 34, 40, seq[i], merge);
+    }
+  })();
+
+  // 战斗界面整装
+  (function () {
+    var cv = document.getElementById('c-battle');
+    var ctx = cv.getContext('2d');
+    var W = cv.width, H = cv.height;
+    A.drawBattleBackdrop(ctx, 0, 0, W, H);
+    // HUD
+    A.drawHudPill(ctx, 8, 26, 88, 22, '守军 十二/十五');
+    A.drawHudPill(ctx, 100, 26, 56, 22, '云 八阶');
+    A.drawHudPill(ctx, W - 146, 26, 62, 22, '金 二四〇');
+    A.drawHudPill(ctx, W - 78, 26, 70, 22, '第八波', 'seal');
+    // 三路径墨径
+    ctx.strokeStyle = A.C.laneInk;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 7]);
+    [0.17, 0.5, 0.83].forEach(function (p) {
+      ctx.beginPath();
+      ctx.moveTo(W * p, 110);
+      ctx.lineTo(W * p, H - 178);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    // 敌军
+    A.drawEnemyToken(ctx, W * 0.17, 150, 20, 'bing', 1);
+    A.drawEnemyToken(ctx, W * 0.17, 210, 20, 'qi', 0.45);
+    A.drawEnemyToken(ctx, W * 0.5, 138, 22, 'shuai', 0.8);
+    A.drawEnemyToken(ctx, W * 0.5, 205, 20, 'bing', 1);
+    A.drawEnemyToken(ctx, W * 0.83, 148, 20, 'gong', 1);
+    A.drawEnemyToken(ctx, W * 0.83, 208, 20, 'qi', 0.3);
+    // 英雄
+    A.drawHeroToken(ctx, W / 2, H - 250, 32, 0.75);
+    // 底部甲板
+    var deckY = H - 150;
+    var dg = ctx.createLinearGradient(0, deckY, 0, H);
+    dg.addColorStop(0, A.C.inkMid); dg.addColorStop(0.7, A.C.ink);
+    ctx.fillStyle = dg;
+    ctx.fillRect(0, deckY, W, 150);
+    ctx.strokeStyle = A.C.bronze; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, deckY); ctx.lineTo(W, deckY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(184,150,62,0.35)';
+    ctx.beginPath(); ctx.moveTo(0, deckY + 2); ctx.lineTo(W, deckY + 2); ctx.stroke();
+    // 锦囊槽
+    var seq = ['qing', 'qing', 'qing', 'xuan', 'zhu', 'bai', null, null];
+    for (var i = 0; i < 8; i++) {
+      A.drawBrocadeSlot(ctx, 22 + i * 34, deckY + 34, 28, seq[i], i <= 2);
+    }
+    // 按钮
+    A.drawInkButton(ctx, 10, deckY + 66, 70, 38, '锦囊');
+    A.drawUltButton(ctx, 86, deckY + 66, 140, 38, '七进七出', 2, true);
+    A.drawInkButton(ctx, 232, deckY + 66, 68, 38, '暂停');
+  })();
+
+  // 技能卡
+  (function () {
+    var ctx = document.getElementById('c-cards').getContext('2d');
+    A.drawSkillCard(ctx, 10, 12, 360, 64, { icon: '锋', name: '会心一击', desc: '攻击两成五概率造成倍伤', rarity: 'r1', rarityText: '凡品' }, false);
+    A.drawSkillCard(ctx, 10, 88, 360, 64, { icon: '阔', name: '枪出如龙', desc: '攻击范围扩三成，波及更多敌军', rarity: 'r2', rarityText: '良品' }, true);
+    A.drawSkillCard(ctx, 10, 164, 360, 64, { icon: '雷', name: '连锁惊雷', desc: '命中后跃迁两名附近敌军', rarity: 'r3', rarityText: '珍品' }, false);
+  })();
+
+  // 点将台
+  (function () {
+    var ctx = document.getElementById('c-roster').getContext('2d');
+    var roster = [
+      { ch: '云', q: 'ur', star: 4, locked: false },
+      { ch: '羽', q: 'ssr', star: 2, locked: false },
+      { ch: '飞', q: 'ssr', star: 1, locked: false },
+      { ch: '亮', q: 'sr', star: 3, locked: false },
+      { ch: '超', q: 'r', star: 0, locked: true },
+      { ch: '忠', q: 'r', star: 0, locked: true }
+    ];
+    for (var i = 0; i < 6; i++) {
+      var col = i % 3, row = Math.floor(i / 3);
+      var cx = 68 + col * 122, cy = 58 + row * 128;
+      var it = roster[i];
+      A.drawHeroPortrait(ctx, cx, cy, 38, it.ch, it.q, it.locked);
+      A.drawQualityTag(ctx, cx - 24, cy + 46, 48, 16, it.q);
+      A.drawStars(ctx, cx - 32, cy + 80, 8, it.star, 5);
+    }
+  })();
+
+  // HUD 牌
+  (function () {
+    var ctx = document.getElementById('c-hud').getContext('2d');
+    A.drawHudPill(ctx, 10, 14, 110, 26, '守军 十二/十五');
+    A.drawHudPill(ctx, 132, 14, 70, 26, '云 八阶');
+    A.drawHudPill(ctx, 214, 14, 76, 26, '金 二四〇');
+    A.drawHudPill(ctx, 302, 14, 70, 26, '第八波', 'seal');
+  })();
+})();
+</script>
+</body>
+</html>
