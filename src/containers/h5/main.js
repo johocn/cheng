@@ -1,4 +1,5 @@
 // containers/h5/main.js — 帧循环：rAF → advanceFrame → drawBattle
+import '../../render/art.js'; // IIFE 素材库副作用导入，先于渲染层就绪（window.Art）
 import { createBattle, advanceFrame } from '../../engine/state.js';
 import { LOGICAL_W, LOGICAL_H } from '../../engine/config.js';
 import { drawBattle } from '../../render/battle.js';
