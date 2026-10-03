@@ -23,7 +23,8 @@ import { grantMonthlyDaily } from '../meta/iap.js';
 import { todayStr } from '../meta/save.js';
 import { setSkin, currentSkin } from '../render/theme.js';
 import { loadHeroPortraits } from '../platform/img.js';
-import { touchQuests, reportQuest, questClaimable, DAILY_QUESTS, WEEKLY_QUESTS } from '../meta/quests.js';
+import { touchQuests, reportQuest, questClaimable, questsOf, claimQuest, claimPass, passLevel, passExp, DAILY_QUESTS, WEEKLY_QUESTS } from '../meta/quests.js';
+import { drawQuests, hitQuests } from '../render/quests.js';
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
@@ -34,7 +35,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   loadHeroPortraits(Object.keys(save.heroes)); // M6 立绘预热（失败静默回退圆牌）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
-  let screen = 'home';        // home | detail | gacha | battle | result | signin
+  let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests
   let selectedHero = 'zhaoyun';
   let battleState = null;     // 战斗局内状态（engine state + chapterN/firstClear/pendingInputs）
   let resultData = null;      // 结算数据 { win, chapterN, rewards, doubled }
@@ -73,6 +74,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'result') return hitResult(x, y, resultData);
     if (screen === 'signin') return hitSignin(x, y, save);
     if (screen === 'shop') return hitShop(x, y, save, shopPick);
+    if (screen === 'quests') return hitQuests(x, y, questTab, questRows(), passData());
     if (screen === 'revive') return hitRevive(x, y);
     return null;
   }
@@ -100,6 +102,32 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     return null;
   }
 
+  // ===== 军务面板视图数据（红点口径统一走 meta/quests.js anyClaimable，core 不另实现）=====
+  function questRows() {
+    const q = questsOf(save);
+    const table = questTab === 'daily' ? DAILY_QUESTS : WEEKLY_QUESTS;
+    return table.map((d) => ({
+      id: d.id, name: d.name, goal: d.goal,
+      cur: q[questTab].progress[d.event] || 0,
+      rewardText: d.reward.diamonds ? `◆${d.reward.diamonds}` : `🪙${d.reward.coins}`,
+      claimable: questClaimable(save, questTab, d.id),
+      claimed: q[questTab].claimed.includes(d.id),
+    }));
+  }
+  function passData() {
+    const lv = passLevel(save);
+    const before = 1, after = 3; // 当前级锚点窗口（无横向滚动手势）
+    const levels = [];
+    for (let l = Math.max(1, lv - before); l <= Math.min(30, lv + after); l++) {
+      levels.push({
+        lv: l,
+        freeClaimed: save.quests.pass.claimedFree.includes(l),
+        paidClaimed: save.quests.pass.claimedPaid.includes(l),
+      });
+    }
+    return { level: lv, exp: passExp(save), paid: !!save.iap.pass, levels };
+  }
+
   // ===== 动作分发 =====
   function dispatch(hit) {
     if (!hit) return;
@@ -109,6 +137,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'battle') startBattle(save.progress.chapter);
       if (hit.action === 'signin') screen = 'signin';
       if (hit.action === 'shop') { screen = 'shop'; shopPick = null; }
+      if (hit.action === 'quests') { screen = 'quests'; questTab = 'daily'; } // 进面板默认页签
       if (hit.action === 'skin' && !adBusy) {
         if (!save.cosmetics.shadowOwned) {
           adBusy = true;
@@ -197,6 +226,26 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         shopPick = null;
         persistSave(save);
         if (r) showToast(r.dup ? `${HEROES[r.heroId].name}碎片 +${r.frags}` : `新武将 · ${HEROES[r.heroId].name}`);
+      }
+    } else if (screen === 'quests') {
+      if (hit.action === 'back') screen = 'home';
+      if (hit.action === 'tab') questTab = hit.tab;
+      if (hit.action === 'claim') {
+        const r = claimQuest(save, questTab, hit.taskId);
+        if (r.ok) {
+          persistSave(save);
+          const p = r.reward;
+          showToast(`领取成功 ${p.diamonds ? `钻石+${p.diamonds}` : `金币+${p.coins}`} · 军令经验+${questTab === 'daily' ? 20 : 60}`);
+        }
+      }
+      if (hit.action === 'passClaim') {
+        const r = claimPass(save, hit.track, hit.level);
+        if (r.ok) {
+          persistSave(save);
+          showToast(`军令 Lv.${hit.level} ${hit.track === 'free' ? '免费' : '令'}轨 · 钻石+${r.reward.diamonds}`);
+        } else if (r.reason === 'locked') {
+          showToast('「令」轨需购战令 · 商城可购');
+        }
       }
     } else if (screen === 'revive') {
       if (hit.action === 'revive' && !adBusy) {
@@ -348,6 +397,8 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       drawSignin(ctx, save);
     } else if (screen === 'shop') {
       drawShop(ctx, save, shopPick);
+    } else if (screen === 'quests') {
+      drawQuests(ctx, save, questTab, questRows(), passData());
     } else if (screen === 'revive') {
       drawBattle(ctx, battleState);
       drawRevive(ctx, battleState.wave);

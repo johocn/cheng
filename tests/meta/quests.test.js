@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
   DAILY_QUESTS, WEEKLY_QUESTS, PASS_LEVEL_EXP, PASS_MAX_LEVEL,
   questsOf, reportQuest, claimQuest, passLevel, passExp, weekIdOf, seasonIdOf,
-  touchQuests, claimPass, questClaimable,
+  touchQuests, claimPass, questClaimable, anyClaimable,
 } from '../../src/meta/quests.js';
 import { defaultSave } from '../../src/meta/save.js';
 
@@ -96,6 +96,14 @@ describe('M6 领取与战令', () => {
     touchQuests(s, { now: new Date('2026-11-01T10:00:00') });
     expect(s.quests.pass.exp).toBe(0);
     expect(questsOf(s).pass.claimedFree).toHaveLength(0);
+  });
+
+  test('anyClaimable 红点口径', () => {
+    const s = defaultSave();
+    touchQuests(s, { now: new Date('2026-10-05T10:00:00') });
+    expect(anyClaimable(s)).toBe(false);
+    reportQuest(s, 'battle_win', 1);
+    expect(anyClaimable(s)).toBe(true);
   });
 });
 

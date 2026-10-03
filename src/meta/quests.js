@@ -76,6 +76,13 @@ export function questClaimable(save, tab, taskId) {
   return !!def && !q.claimed.includes(taskId) && (q.progress[def.event] || 0) >= def.goal;
 }
 
+// 红点统一口径：每日/每周任一任务可领（core 与 home 共用，禁止各自实现）
+export function anyClaimable(save) {
+  if (!save.quests) return false;
+  return [...DAILY_QUESTS, ...WEEKLY_QUESTS].some((d) =>
+    questClaimable(save, d.id.startsWith('d_') ? 'daily' : 'weekly', d.id));
+}
+
 function grant(save, reward) {
   if (reward.diamonds) save.wallet.diamonds += reward.diamonds;
   if (reward.coins) save.wallet.coins += reward.coins;

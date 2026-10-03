@@ -1,7 +1,8 @@
-// render/home.js — 主城：章节卡 + 英雄横排 + 羁绊条 + M5 入口行（签到/商城）+ 皮影皮肤卡 + 底部三按钮
+// render/home.js — 主城：章节卡 + 英雄横排 + 羁绊条 + M6 入口行（军务/签到/商城三等分）+ 皮影皮肤卡 + 底部三按钮
 import { LOGICAL_W, LOGICAL_H } from '../engine/config.js';
 import { HEROES, BOND_HEROES, chapterName, chapterMul } from '../meta/heroes.js';
 import { signinClaimable } from '../meta/signin.js';
+import { anyClaimable } from '../meta/quests.js';
 import { currentSkin } from '../render/theme.js';
 import { KAI, C, panel, topbar, heroSeal, btn, starsText } from './ui.js';
 import { drawPortrait } from './portrait.js';
@@ -9,8 +10,9 @@ import { drawPortrait } from './portrait.js';
 // 布局常量（720×1280）
 export const HOME_LAYOUT = {
   heroY: 300, heroR: 40, heroStep: 96, heroX0: 72,   // 7 格横排
-  signinBtn: { x: 30, y: 540, w: 330, h: 90 },       // M5 入口行
-  shopBtn: { x: 360, y: 540, w: 330, h: 90 },
+  questBtn: { x: 20, y: 540, w: 213, h: 90 },        // M6 军务
+  signinBtn: { x: 243, y: 540, w: 213, h: 90 },      // M5 入口行
+  shopBtn: { x: 466, y: 540, w: 214, h: 90 },
   skinCard: { x: 30, y: 660, w: 660, h: 170 },
   skinBtn: { w: 200, h: 70 },
   btnY: 1140, btnH: 90,
@@ -62,7 +64,8 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun') {
     LOGICAL_W / 2, 455,
   );
 
-  // M5 入口行：签到（红点）+ 商城
+  // M6 入口行：军务（红点）+ 签到（红点）+ 商城（三等分）
+  drawEntry(ctx, L.questBtn, '务', '军务', anyClaimable(save));
   drawEntry(ctx, L.signinBtn, '签', '每日签到', signinClaimable(save));
   drawEntry(ctx, L.shopBtn, '商', '商城', false);
 
@@ -134,6 +137,7 @@ export function hitHome(x, y) {
   }
   const L = HOME_LAYOUT;
   const inBtn = (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  if (inBtn(L.questBtn)) return { action: 'quests' };
   if (inBtn(L.signinBtn)) return { action: 'signin' };
   if (inBtn(L.shopBtn)) return { action: 'shop' };
   if (inBtn(L.skinCard)) return { action: 'skin' };
