@@ -4,6 +4,7 @@ import '../../render/art.js';
 import { createApp } from '../../app/core.js';
 import { LOGICAL_W, LOGICAL_H } from '../../engine/config.js';
 import { showRewarded } from '../../platform/ads.js';
+import { purchase } from '../../platform/iap.js';
 
 const canvas = wx.createCanvas(); // 主 canvas，内容自动拉伸铺满全屏
 canvas.width = LOGICAL_W;
@@ -14,6 +15,7 @@ const sys = wx.getSystemInfoSync(); // 兼容性优先；新 API getWindowInfo �
 const app = createApp({
   ctx,
   showRewarded,
+  purchase,
   // 快进通道对齐 H5：预览时在启动参数带 ?speed=N
   getSpeed: () => Number(wx.getLaunchOptionsSync().query?.speed) || 1,
 });

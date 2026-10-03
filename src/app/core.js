@@ -7,6 +7,8 @@ import { drawBattle } from '../render/battle.js';
 import { drawHome, hitHome } from '../render/home.js';
 import { drawResult, hitResult } from '../render/result.js';
 import { drawDetail, hitDetail, drawGacha, hitGacha } from '../render/metaScreens.js';
+import { drawShop, hitShop } from '../render/shop.js';
+import { applyIap, grantFirstChargeHero, srPool, fundChapterBonus, owned } from '../meta/iap.js';
 import { loadSave, persistSave, touchDaily } from '../meta/save.js';
 import { levelUp, starUp, atkMul } from '../meta/meta.js';
 import { pullOnce, pullTen, PULL_COST, TEN_COST } from '../meta/gacha.js';
@@ -16,7 +18,7 @@ import { drawSignin, hitSignin } from '../render/signin.js';
 import { claimSignin, signinClaimable } from '../meta/signin.js';
 import { toast } from '../render/ui.js';
 
-export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
+export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
   const save = loadSave();
   touchDaily(save); // 跨日重置免费抽计数
@@ -27,6 +29,7 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
   let resultData = null;      // 结算数据 { win, chapterN, rewards, doubled }
   let gachaResult = null;     // 抽卡结果浮层（单条或数组，null=无浮层）
   let adBusy = false;         // 激励视频观看中，防重入
+  let shopPick = null;        // 首充 SR 自选浮层
   let toastMsg = '', toastUntil = 0;
   function showToast(msg) { toastMsg = msg; toastUntil = Date.now() + 2600; }
   let last = 0;
@@ -49,6 +52,7 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
     if (screen === 'gacha') return hitGacha(x, y, save, gachaResult);
     if (screen === 'result') return hitResult(x, y, resultData);
     if (screen === 'signin') return hitSignin(x, y, save);
+    if (screen === 'shop') return hitShop(x, y, save, shopPick);
     return null;
   }
 
@@ -83,6 +87,7 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
       if (hit.action === 'gacha') { screen = 'gacha'; gachaResult = null; }
       if (hit.action === 'battle') startBattle(save.progress.chapter);
       if (hit.action === 'signin') screen = 'signin';
+      if (hit.action === 'shop') { screen = 'shop'; shopPick = null; }
     } else if (screen === 'detail') {
       if (hit.action === 'back') screen = 'home';
       if (hit.action === 'levelUp') { levelUp(save, selectedHero); persistSave(save); }
@@ -127,6 +132,29 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
           },
           onFail() { adBusy = false; },
         });
+      }
+    } else if (screen === 'shop') {
+      if (hit.action === 'back') { screen = 'home'; shopPick = null; }
+      if (hit.action === 'buy' && !adBusy && !owned(save, hit.sku)) {
+        adBusy = true;
+        purchase(hit.sku, {
+          onSuccess() {
+            adBusy = false;
+            const r = applyIap(save, hit.sku);
+            persistSave(save);
+            if (!r) return;
+            if (r.pick) shopPick = srPool();
+            if (r.skin) showToast('皮影戏限定皮肤已解锁');
+            if (r.diamonds) showToast(`钻石 +${r.diamonds}`);
+          },
+          onFail() { adBusy = false; },
+        });
+      }
+      if (hit.action === 'pickHero') {
+        const r = grantFirstChargeHero(save, hit.heroId);
+        shopPick = null;
+        persistSave(save);
+        if (r) showToast(r.dup ? `${HEROES[r.heroId].name}碎片 +${r.frags}` : `新武将 · ${HEROES[r.heroId].name}`);
       }
     }
   }
@@ -195,6 +223,7 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
     if (r.firstClear) {
       save.progress.chapterClear = Math.max(save.progress.chapterClear, r.chapterN);
       save.progress.chapter = save.progress.chapterClear + 1;
+      fundChapterBonus(save, r.chapterN); // 成长基金章节首通返还
     }
     save.progress.waveBest = Math.max(save.progress.waveBest, 15);
   }
@@ -231,6 +260,8 @@ export function createApp({ ctx, showRewarded, getSpeed = () => 1 }) {
       drawResult(ctx, save, resultData);
     } else if (screen === 'signin') {
       drawSignin(ctx, save);
+    } else if (screen === 'shop') {
+      drawShop(ctx, save, shopPick);
     }
     // 屏绘制后统一画 toast（战斗屏除外）
     if (screen !== 'battle' && Date.now() < toastUntil) toast(ctx, toastMsg);
