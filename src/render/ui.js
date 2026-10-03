@@ -113,3 +113,19 @@ export function heroSeal(ctx, cx, cy, r, char, owned = true, selected = false) {
 export function starsText(n, max = 5) {
   return '★'.repeat(n) + '☆'.repeat(Math.max(0, max - n));
 }
+
+// 提示浮条：居中羊皮纸条（core 设置 toastMsg/toastUntil 后逐帧调用）
+export function toast(ctx, msg, y = 990) {
+  ctx.font = `600 28px ${KAI}`;
+  const w = Math.min(660, ctx.measureText(msg).width + 64);
+  const x = (LOGICAL_W - w) / 2;
+  ctx.save();
+  ctx.globalAlpha = 0.95;
+  panel(ctx, x, y, w, 64);
+  ctx.restore();
+  ctx.fillStyle = C.ink;
+  ctx.font = `600 26px ${KAI}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(msg, LOGICAL_W / 2, y + 33);
+}
