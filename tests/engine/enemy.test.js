@@ -48,7 +48,8 @@ describe('spawnEnemy', () => {
     expect(s.enemies[0]).toEqual({
       id: 1, type: 'bing', lane: 0, t: 0,
       hp: ENEMY_TYPES.bing.hp, hpMax: ENEMY_TYPES.bing.hp,
-      speedMul: 1, slowT: 0, stunT: 0, burnT: 0,
+      speedMul: 1, dmgBonus: 0, affix: null, siegeClock: 0,
+      slowT: 0, stunT: 0, burnT: 0,
     });
     expect(s.enemies[1].id).toBe(2);
     expect(s.nextEnemyId).toBe(3);
@@ -157,5 +158,43 @@ describe('M6 新敌人', () => {
     const hp0 = b.hp;
     moveEnemies(s, 1);
     expect(hp0 - b.hp).toBeCloseTo(b.hpMax * 0.02, 5);
+  });
+});
+
+describe('M6 投石车停驻轰击', () => {
+  it('停驻后不推进且周期轰击走 leaked 通道', () => {
+    const s = makeState();
+    spawnEnemy(s, 'tou', 0);
+    const tou = s.enemies[0];
+    const siegeT = 1 - 260 / laneLength(0);   // 停驻点（lane0 长 680，≈0.6176）
+    tou.t = siegeT;
+    expect(tou.siegeClock).toBe(0);           // 轰击计时字段
+    let leaked = moveEnemies(s, 3);           // 3s：触发一次轰击
+    expect(tou.t).toBe(siegeT);               // 不推进
+    expect(leaked).toEqual([{ type: 'tou', dmg: 1 }]); // SIEGE_DMG=1（state.js 统一结算，护盾免伤）
+    leaked = moveEnemies(s, 2.9);             // 不足周期，不轰击
+    expect(leaked).toHaveLength(0);
+    leaked = moveEnemies(s, 0.1);             // 满 3s 再轰
+    expect(leaked).toEqual([{ type: 'tou', dmg: 1 }]);
+  });
+
+  it('停驻点前正常推进不轰击', () => {
+    const s = makeState();
+    spawnEnemy(s, 'tou', 0);
+    const leaked = moveEnemies(s, 1);         // 1s 内推进远未到停驻点
+    expect(leaked).toHaveLength(0);
+    expect(s.enemies[0].t).toBeCloseTo(22 / 680, 5); // tou speed 22
+  });
+
+  it('被击退后恢复推进', () => {
+    const s = makeState();
+    spawnEnemy(s, 'tou', 0);
+    const tou = s.enemies[0];
+    tou.t = 1 - 260 / laneLength(0);
+    moveEnemies(s, 1);
+    tou.t = Math.max(0, tou.t - 0.5);         // 模拟白虎击退
+    const t0 = tou.t;
+    moveEnemies(s, 1);
+    expect(tou.t).toBeGreaterThan(t0);        // 重新推进
   });
 });

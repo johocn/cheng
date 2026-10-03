@@ -1,5 +1,5 @@
 // engine/enemy.js — 敌人生成 / 沿路径移动 / 漏怪判定
-import { LANES, ENEMY_TYPES } from './config.js';
+import { LANES, ENEMY_TYPES, SIEGE_RANGE, SIEGE_INTERVAL, SIEGE_DMG } from './config.js';
 
 // 路径几何只读，模块级缓存（不依赖 state，不影响纯度）
 const laneCache = new Map();
@@ -37,7 +37,7 @@ export function pathPoint(laneIdx, t) {
   return { x: last.bx, y: last.by };
 }
 
-export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1) {
+export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = null) {
   const def = ENEMY_TYPES[type];
   state.enemies.push({
     id: state.nextEnemyId++,
@@ -47,6 +47,9 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1) {
     hp: def.hp * mul * hpMul,    // hpMul：章节敌方 hp 系数（M3 局外注入）
     hpMax: def.hp * mul * hpMul,
     speedMul: mul, // 速度成长与 slow/stun 合成在 moveEnemies（不随章节系数放大）
+    dmgBonus: 0,   // 词缀 sharp 加成预留位（M6 Task 3 折入）
+    affix,         // 精英词缀存储位（乘区在 Task 3）
+    siegeClock: 0, // 投石车轰击计时
     slowT: 0, stunT: 0, burnT: 0,
   });
 }
@@ -66,9 +69,19 @@ export function moveEnemies(state, dtSec) {
       e.hp -= e.hpMax * 0.02 * dtSec * burnK * (e.burnMul || 1);
     }
     const slow = e.slowT > 0 ? 0.7 : 1;
+    // M6 投石车：抵达停驻点后驻守轰击，永不漏怪（被击退 t 变小则恢复推进）
+    if (e.type === 'tou' && e.t >= 1 - SIEGE_RANGE / laneLength(e.lane)) {
+      e.siegeClock += dtSec;
+      while (e.siegeClock >= SIEGE_INTERVAL) {
+        e.siegeClock -= SIEGE_INTERVAL;
+        leaked.push({ type: e.type, dmg: SIEGE_DMG + (e.dmgBonus || 0) });
+      }
+      survivors.push(e);
+      continue;
+    }
     e.t += (ENEMY_TYPES[e.type].speed * (e.speedMul || 1) * slow * dtSec) / laneLength(e.lane);
     if (e.t >= 1) {
-      leaked.push({ type: e.type, dmg: ENEMY_TYPES[e.type].dmg });
+      leaked.push({ type: e.type, dmg: ENEMY_TYPES[e.type].dmg + (e.dmgBonus || 0) });
     } else {
       survivors.push(e);
     }

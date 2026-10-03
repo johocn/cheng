@@ -23,6 +23,11 @@ export const ENEMY_TYPES = {
   teng:  { hp: 300, speed: 32, dmg: 2, reward: 25, label: '藤' },
 };
 
+// ===== M6 投石车 =====
+export const SIEGE_RANGE = 260;   // 距英雄剩余路径长阈值（停驻轰击）
+export const SIEGE_INTERVAL = 3;  // 轰击周期秒
+export const SIEGE_DMG = 1;       // 轰击基础扣守军（词缀 sharp 在 spawnEnemy 折入 e.dmgBonus）
+
 // 三条进攻路径（折线拐点），均终于 HERO_POS
 export const LANES = [
   [{ x: 360, y: -40 }, { x: 360, y: 640 }],
