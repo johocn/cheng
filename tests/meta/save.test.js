@@ -1,0 +1,41 @@
+// tests/meta/save.test.js
+import { describe, it, expect, beforeEach } from 'vitest';
+import { defaultSave, loadSave, persistSave, touchDaily } from '../../src/meta/save.js';
+
+describe('meta/save 存档层', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('默认存档：赵云已拥有★1Lv1，钻石 300 金币 500，进度第 1 章', () => {
+    const s = defaultSave();
+    expect(s.v).toBe(1);
+    expect(s.heroes.zhaoyun).toEqual({ owned: true, stars: 1, level: 1, frags: 0 });
+    expect(s.heroes.guanyu.owned).toBe(false);
+    expect(s.wallet).toEqual({ coins: 500, diamonds: 300, stamina: 60 });
+    expect(s.progress).toEqual({ chapter: 1, chapterClear: 0, waveBest: 0 });
+    expect(s.daily.freePulls).toBe(0);
+  });
+
+  it('persist 后 load 还原', () => {
+    const s = defaultSave();
+    s.wallet.coins = 1234;
+    persistSave(s);
+    expect(loadSave().wallet.coins).toBe(1234);
+  });
+
+  it('load 无存档/损坏时返回默认存档（不抛错）', () => {
+    expect(loadSave()).toEqual(defaultSave());
+    localStorage.setItem('qqc_save_v1', '{broken');
+    expect(loadSave()).toEqual(defaultSave());
+  });
+
+  it('touchDaily：跨日重置免费抽计数', () => {
+    const s = defaultSave();
+    s.daily = { freePulls: 3, date: '2000-01-01' };
+    touchDaily(s);
+    expect(s.daily.freePulls).toBe(0);
+    expect(s.daily.date).not.toBe('2000-01-01');
+    const before = s.daily.date;
+    touchDaily(s); // 同日不再重置
+    expect(s.daily.date).toBe(before);
+  });
+});

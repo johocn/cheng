@@ -2,4 +2,9 @@
 // 本文件优先于 vite.config.js（其 root 指向 src/containers/h5，仅供 dev server 使用）
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({});
+export default defineConfig({
+  test: {
+    // node 环境无 localStorage（jsdom 未安装），用最小垫片供 meta 存档层测试
+    setupFiles: ['./tests/setup.localStorage.js'],
+  },
+});
