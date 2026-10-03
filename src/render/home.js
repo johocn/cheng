@@ -109,7 +109,7 @@ function drawSkinCard(ctx, save, L) {
   ctx.textAlign = 'left';
   ctx.fillText('皮影戏 · 整包皮肤', px + pw + 26, s.y + 52);
   ctx.fillStyle = C.mut; ctx.font = `600 22px ${KAI}`;
-  ctx.fillText('暗底暖光 · 镂空剪影 · 全界面换肤', px + pw + 26, s.y + 100);
+  ctx.fillText('暗底暖光 · 镂空剪影', px + pw + 26, s.y + 100);
   // 右侧按钮：未解锁 → 广告解锁；已解锁 → 使用中/换装
   const cur = currentSkin();
   const b = L.skinBtn;

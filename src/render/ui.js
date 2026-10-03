@@ -9,6 +9,7 @@ export const C = {
   cinnabar: '#9e2a1e', mut: '#8a7a5f', gray: '#a89c86',
   ok: '#3e7a3a',
   paperHi: '#f6efdd', paperDeep: '#d9c9a8',
+  chromeText: '#f2e8d0', // 顶栏恒亮字（顶栏底色固定深墨，不随换肤反转）
 };
 
 // 圆角矩形路径（arcTo 四角）
@@ -65,7 +66,7 @@ export function btn(ctx, x, y, w, h, label, style = 'cinnabar', fontSize = 30) {
 export function topbar(ctx, save, title) {
   ctx.fillStyle = 'rgba(31,27,22,0.92)';
   ctx.fillRect(0, 0, LOGICAL_W, 90);
-  ctx.fillStyle = C.paper;
+  ctx.fillStyle = C.chromeText;
   ctx.font = `700 30px ${KAI}`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(title || '七进七出', 30, 45);
@@ -82,7 +83,7 @@ export function topbar(ctx, save, title) {
     ctx.strokeStyle = 'rgba(201,162,39,0.55)';
     ctx.lineWidth = 2;
     roundRect(ctx, x, 20, w, 50, 25); ctx.stroke();
-    ctx.fillStyle = C.paper;
+    ctx.fillStyle = C.chromeText;
     ctx.fillText(items[i], x + 14, 46);
     x -= 12;
   }

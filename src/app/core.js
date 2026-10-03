@@ -336,5 +336,10 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   function start() { requestAnimationFrame(loop); }
 
-  return { handlePointer, start, get screen() { return screen; } };
+  return {
+    handlePointer, start,
+    get screen() { return screen; },
+    // 冒烟测试钩子：仅 dev 生效（import.meta.env.DEV），prod 构建整段死码剔除
+    __debug(fn) { if (import.meta.env.DEV && battleState) fn(battleState); },
+  };
 }

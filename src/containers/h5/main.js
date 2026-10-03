@@ -19,6 +19,7 @@ const app = createApp({
   getSpeed: () => Number(new URLSearchParams(location.search).get('speed')) || 1,
 });
 app.start();
+if (import.meta.env.DEV) window.__app = app; // 冒烟钩子：配合 core.__debug 驱动终态（prod 不存在）
 
 // 坐标换算：canvas CSS 显示尺寸（height:100dvh 自适应）→ 720×1280 逻辑坐标
 canvas.addEventListener('pointerdown', (e) => {
