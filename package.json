@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:h5": "vite build",
+    "build:wx": "node scripts/build-wx.mjs"
   },
   "devDependencies": {
     "vite": "^8.3.2",
