@@ -22,6 +22,11 @@ export function defaultSave() {
     progress: { chapter: 1, chapterClear: 0, waveBest: 0 },
     daily: { freePulls: 0, signinCount: 0, signinClaimedDate: null, date: todayStr() },
     iap: defaultIap(),
+    quests: {
+      daily: { date: '', progress: {}, claimed: [] },
+      weekly: { weekId: '', progress: {}, claimed: [] },
+      pass: { seasonId: '', exp: 0, claimedFree: [], claimedPaid: [] },
+    },
     cosmetics: { skin: 'ink', shadowOwned: false },
   };
 }
@@ -59,6 +64,8 @@ export function loadSave() {
     parsed.daily.signinCount ??= 0;
     parsed.daily.signinClaimedDate ??= null;
     parsed.iap = { ...defaultIap(), ...(parsed.iap || {}) };
+    // M6 任务字段补齐（旧档迁移；touchQuests 负责日/周/赛季内容重置）
+    parsed.quests = { ...defaultSave().quests, ...(parsed.quests || {}) };
     parsed.cosmetics = { skin: 'ink', shadowOwned: false, ...(parsed.cosmetics || {}) };
     return parsed;
   } catch {
