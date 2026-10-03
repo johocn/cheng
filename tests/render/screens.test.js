@@ -3,6 +3,7 @@
 import { it, expect } from 'vitest';
 import { SIGNIN_LAYOUT, hitSignin } from '../../src/render/signin.js';
 import { SHOP_LAYOUT, hitShop } from '../../src/render/shop.js';
+import { REVIVE_LAYOUT, hitRevive } from '../../src/render/revive.js';
 import { defaultSave } from '../../src/meta/save.js';
 
 it('signin 命中：返回/领取（未领可领）', () => {
@@ -32,4 +33,9 @@ it('shop 命中：已购卡返回 null', () => {
   const c = SHOP_LAYOUT.cards[0], b = SHOP_LAYOUT.buyBtn;
   const bx = c.x + c.w - b.w - 24, by = c.y + (c.h - b.h) / 2;
   expect(hitShop(bx + 5, by + 5, save)).toBeNull();
+});
+it('revive 命中：复活/撤退', () => {
+  const A = REVIVE_LAYOUT.adBtn, G = REVIVE_LAYOUT.giveup;
+  expect(hitRevive(A.x + 5, A.y + 5)).toEqual({ action: 'revive' });
+  expect(hitRevive(G.x + G.w / 2, G.y + G.h / 2)).toEqual({ action: 'giveup' });
 });

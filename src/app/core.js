@@ -8,6 +8,7 @@ import { drawHome, hitHome } from '../render/home.js';
 import { drawResult, hitResult } from '../render/result.js';
 import { drawDetail, hitDetail, drawGacha, hitGacha } from '../render/metaScreens.js';
 import { drawShop, hitShop } from '../render/shop.js';
+import { drawRevive, hitRevive } from '../render/revive.js';
 import { applyIap, grantFirstChargeHero, srPool, fundChapterBonus, owned } from '../meta/iap.js';
 import { loadSave, persistSave, touchDaily } from '../meta/save.js';
 import { levelUp, starUp, atkMul } from '../meta/meta.js';
@@ -30,6 +31,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   let gachaResult = null;     // 抽卡结果浮层（单条或数组，null=无浮层）
   let adBusy = false;         // 激励视频观看中，防重入
   let shopPick = null;        // 首充 SR 自选浮层
+  let reviveUsed = false;     // 本局复活次数（0/1）
   let toastMsg = '', toastUntil = 0;
   function showToast(msg) { toastMsg = msg; toastUntil = Date.now() + 2600; }
   let last = 0;
@@ -53,6 +55,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'result') return hitResult(x, y, resultData);
     if (screen === 'signin') return hitSignin(x, y, save);
     if (screen === 'shop') return hitShop(x, y, save, shopPick);
+    if (screen === 'revive') return hitRevive(x, y);
     return null;
   }
 
@@ -156,6 +159,21 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         persistSave(save);
         if (r) showToast(r.dup ? `${HEROES[r.heroId].name}碎片 +${r.frags}` : `新武将 · ${HEROES[r.heroId].name}`);
       }
+    } else if (screen === 'revive') {
+      if (hit.action === 'revive' && !adBusy) {
+        adBusy = true;
+        showRewarded('revive', {
+          onReward() {
+            adBusy = false;
+            reviveUsed = true;
+            battleState.hp = battleState.hpMax; // 原地满血（敌人/波次现场保持）
+            battleState.stage = 'wave';         // 解除 engine 终态冻结
+            screen = 'battle';
+          },
+          onFail() { adBusy = false; },
+        });
+      }
+      if (hit.action === 'giveup') finishBattle();
     }
   }
 
@@ -194,6 +212,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     battleState.chapterN = chapterN;   // 展示/结算用标注（engine 不读）
     battleState.firstClear = chapterN > save.progress.chapterClear;
     battleState.pendingInputs = null;
+    reviveUsed = false;
     screen = 'battle';
   }
 
@@ -248,7 +267,13 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'battle') {
       battleState = advanceFrame(battleState, battleState.pendingInputs, dtMs * SPEED);
       battleState.pendingInputs = null; // 每帧消费一次
-      if (battleState.stage === 'victory' || battleState.stage === 'over') finishBattle();
+      if (battleState.stage === 'victory' || battleState.stage === 'over') {
+        if (battleState.stage === 'over' && !reviveUsed) {
+          screen = 'revive'; // 拦截结算 → 弹复活（engine 终态冻结，等待 app 层处置）
+        } else {
+          finishBattle();
+        }
+      }
       drawBattle(ctx, battleState);
     } else if (screen === 'home') {
       drawHome(ctx, save, selectedHero);
@@ -262,6 +287,9 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       drawSignin(ctx, save);
     } else if (screen === 'shop') {
       drawShop(ctx, save, shopPick);
+    } else if (screen === 'revive') {
+      drawBattle(ctx, battleState);
+      drawRevive(ctx, battleState.wave);
     }
     // 屏绘制后统一画 toast（战斗屏除外）
     if (screen !== 'battle' && Date.now() < toastUntil) toast(ctx, toastMsg);
