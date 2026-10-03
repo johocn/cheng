@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { pathPoint, laneLength, spawnEnemy, moveEnemies } from '../../src/engine/enemy.js';
+import {
+  pathPoint, laneLength, spawnEnemy, moveEnemies, reapDead,
+} from '../../src/engine/enemy.js';
 import { ENEMY_TYPES, HERO_POS } from '../../src/engine/config.js';
 
 function makeState() {
@@ -46,9 +48,18 @@ describe('spawnEnemy', () => {
     expect(s.enemies[0]).toEqual({
       id: 1, type: 'bing', lane: 0, t: 0,
       hp: ENEMY_TYPES.bing.hp, hpMax: ENEMY_TYPES.bing.hp,
+      speedMul: 1, slowT: 0, stunT: 0, burnT: 0,
     });
     expect(s.enemies[1].id).toBe(2);
     expect(s.nextEnemyId).toBe(3);
+  });
+
+  it('mul 参数：hp/hpMax/speedMul 同步成长（默认 1）', () => {
+    const s = makeState();
+    spawnEnemy(s, 'bing', 0, 1.5);
+    expect(s.enemies[0].hp).toBe(150);
+    expect(s.enemies[0].hpMax).toBe(150);
+    expect(s.enemies[0].speedMul).toBe(1.5);
   });
 });
 
@@ -71,5 +82,51 @@ describe('moveEnemies', () => {
     expect(leaked).toEqual([{ type: 'qi', dmg: ENEMY_TYPES.qi.dmg }]);
     expect(s.enemies).toHaveLength(1);
     expect(s.enemies[0].type).toBe('bing');
+  });
+
+  it('stunT>0：原地冻结不移动也不漏怪，计时递减', () => {
+    const s = makeState();
+    spawnEnemy(s, 'qi', 0);
+    s.enemies[0].t = 0.999;
+    s.enemies[0].stunT = 0.5;
+    const leaked = moveEnemies(s, 0.1);
+    expect(leaked).toHaveLength(0);
+    expect(s.enemies).toHaveLength(1);
+    expect(s.enemies[0].t).toBeCloseTo(0.999, 5);
+    expect(s.enemies[0].stunT).toBeCloseTo(0.4, 5);
+  });
+
+  it('slowT>0：移速 ×0.7，计时递减', () => {
+    const s = makeState();
+    spawnEnemy(s, 'bing', 0);
+    s.enemies[0].slowT = 2;
+    moveEnemies(s, 1);
+    expect(s.enemies[0].t).toBeCloseTo((35 / 680) * 0.7, 5);
+    expect(s.enemies[0].slowT).toBeCloseTo(1, 5);
+  });
+
+  it('burnT>0：每秒损失 2% hpMax，计时递减', () => {
+    const s = makeState();
+    spawnEnemy(s, 'bing', 0);
+    s.enemies[0].burnT = 1;
+    moveEnemies(s, 1);
+    expect(s.enemies[0].hp).toBeCloseTo(100 - 2, 5);
+    expect(s.enemies[0].burnT).toBeCloseTo(0, 5);
+  });
+});
+
+describe('reapDead 帧末清尸', () => {
+  it('hp≤0：入金币、计击杀、移出战场；活者保留', () => {
+    const s = makeState();
+    s.coins = 0;
+    s.killCount = 0;
+    spawnEnemy(s, 'bing', 0);
+    spawnEnemy(s, 'qi', 1);
+    s.enemies[0].hp = 0;
+    reapDead(s);
+    expect(s.enemies).toHaveLength(1);
+    expect(s.enemies[0].type).toBe('qi');
+    expect(s.coins).toBe(ENEMY_TYPES.bing.reward);
+    expect(s.killCount).toBe(1);
   });
 });

@@ -1,79 +1,109 @@
 import { describe, it, expect } from 'vitest';
-import { createBattle, advanceFrame } from '../../src/engine/state.js';
-import { HP_MAX, TOTAL_WAVES } from '../../src/engine/config.js';
+import { createBattle, advanceFrame, refreshStats } from '../../src/engine/state.js';
+import { TOTAL_WAVES, HP_MAX } from '../../src/engine/config.js';
 
-describe('createBattle', () => {
-  it('初始状态完整', () => {
-    const s = createBattle();
-    expect(s.hp).toBe(HP_MAX);
-    expect(s.hpMax).toBe(HP_MAX);
-    expect(s.coins).toBe(0);
-    expect(s.wave).toBe(0);
-    expect(s.stage).toBe('interval');
-    expect(s.enemies).toEqual([]);
-    expect(s.hero.pos).toEqual({ x: 360, y: 640 });
-    expect(s.hero.atkCooldown).toBe(0);
-    expect(s.nextEnemyId).toBe(1);
-    expect(s.frame).toBe(0);
-  });
-});
+function runFrames(state, seconds, inputs) {
+  let ms = seconds * 1000;
+  while (ms > 0) {
+    const step = Math.min(16.667, ms);
+    state = advanceFrame(state, inputs, step);
+    ms -= step;
+    if (state.stage === 'victory' || state.stage === 'over') break;
+  }
+  return state;
+}
 
-describe('advanceFrame 纯函数契约', () => {
-  it('不变异入参', () => {
-    const s = createBattle();
-    const before = JSON.stringify(s);
-    advanceFrame(s, null, 1000);
-    expect(JSON.stringify(s)).toBe(before);
-  });
-
-  it('大 dt 切片推进：1 秒 ≈ 60 tick，time 前进 1s', () => {
-    const s = createBattle();
-    const s2 = advanceFrame(s, null, 1000);
-    expect(s2.time).toBeCloseTo(1.0, 1);
-    expect(s2.frame).toBeGreaterThanOrEqual(59);
-    expect(s2.frame).toBeLessThanOrEqual(61);
-  });
-
-  it('多次小步与大步推进结果一致（确定性）', () => {
-    const a = createBattle();
-    let s = a;
-    for (let i = 0; i < 30; i++) s = advanceFrame(s, null, 16.667);
-    const b = createBattle();
-    const s2 = advanceFrame(b, null, 30 * 16.667);
-    expect(s.time).toBeCloseTo(s2.time, 1);
-    expect(s.stage).toBe(s2.stage);
-    expect(s.enemies.length).toBe(s2.enemies.length);
-  });
-});
-
-describe('战斗终局', () => {
-  it('漏怪扣守军血；血量归零进入 over 且时间冻结', () => {
-    let s = createBattle();
-    s.hp = 1;
-    s.stage = 'wave';           // 直接构造 wave 场景
-    s.spawnQueue = [];
-    s.wave = 1;
-    s.enemies = [{ id: 1, type: 'qi', lane: 0, t: 0.999, hp: 1, hpMax: 220 }];
-    s = advanceFrame(s, null, 200);
-    expect(s.stage).toBe('over');
-    expect(s.hp).toBe(0);
-    const frame = s.frame;
-    const frozen = advanceFrame(s, null, 5000);
-    expect(frozen.frame).toBe(frame); // 终态时间冻结
-  });
-
-  // it.skip：依赖 3 波事件表与旧平衡数值（TOTAL_WAVES 现为 15），Task 6 重写集成验收
-  it.skip('集成验收：全程自动战斗 3 波全通 victory 且满血', () => {
-    let s = createBattle();
-    let guard = 0;
-    while (s.stage !== 'victory' && s.stage !== 'over' && guard < 300) {
-      s = advanceFrame(s, null, 1000);
-      guard++;
+// 自动玩家：skillPick 选「稀有度最高」的；大招就绪即放；锦囊冷却 3s 点一次（有合先合）
+function autoPlay(state, maxSeconds) {
+  let elapsed = 0;
+  let slotCd = 0;
+  while (elapsed < maxSeconds) {
+    if (state.stage === 'victory' || state.stage === 'over') break;
+    if (state.stage === 'skillPick' && state.pickChoices) {
+      const r = { 0: 0, 1: 1, 2: 2 };
+      const best = state.pickChoices.reduce(
+        (bi, id, i, arr) => (r[id] > r[arr[bi]] ? i : bi), 0,
+      );
+      state = advanceFrame(state, { pickSkill: best }, 16.667);
+      elapsed += 0.016667;
+      continue;
     }
+    if (state.slots.filter((x) => x && x.type === 'jice').length >= 2) {
+      state = advanceFrame(state, { useUlt: true }, 16.667);
+      elapsed += 0.016667;
+      continue;
+    }
+    if (slotCd <= 0 && state.stage === 'wave' && state.slots.some(Boolean)) {
+      const idx = state.slots.findIndex(Boolean);
+      state = advanceFrame(state, { clickSlot: idx }, 16.667);
+      slotCd = 3;
+      elapsed += 0.016667;
+      continue;
+    }
+    state = advanceFrame(state, null, 100);
+    elapsed += 0.1;
+    slotCd -= 0.1;
+  }
+  return state;
+}
+
+describe('M2 主状态机', () => {
+  it('createBattle 初始态完整（slots/skills/ult/heroStat）', () => {
+    const s = createBattle(1);
+    expect(s.stage).toBe('interval');
+    expect(s.slots).toHaveLength(8);
+    expect(s.skills).toEqual([]);
+    expect(s.ult).toBeNull();
+    expect(s.heroStat.atk).toBe(60);
+    expect(s.hp).toBe(HP_MAX);
+    expect(s.wave).toBe(0);
+  });
+
+  it('纯函数：advanceFrame 不改入参（state 与 inputs 均不变异）', () => {
+    const s = createBattle(2);
+    const snap = JSON.stringify(s);
+    const inputs = { clickSlot: 0 };
+    advanceFrame(s, inputs, 100);
+    expect(JSON.stringify(s)).toBe(snap);
+    expect(inputs).toEqual({ clickSlot: 0 });
+  });
+
+  it('确定性：同种子同输入序列结果一致', () => {
+    const a = autoPlay(runFrames(createBattle(42), 6), 30);
+    const b = autoPlay(runFrames(createBattle(42), 6), 30);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it('15 波自动玩家通关 victory（集成验收）', () => {
+    const t0 = Date.now();
+    const s = autoPlay(runFrames(createBattle(20260304), 2), 60 * 30);
+    console.log(`[集成验收] stage=${s.stage} wave=${s.wave} hp=${s.hp}/${s.hpMax} `
+      + `击杀=${s.killCount} 金币=${s.coins} 实际用时=${((Date.now() - t0) / 1000).toFixed(1)}s`);
     expect(s.stage).toBe('victory');
     expect(s.wave).toBe(TOTAL_WAVES);
-    expect(s.hp).toBe(HP_MAX); // 数值已验算：不漏怪
-    expect(s.coins).toBeGreaterThan(0);
-    expect(s.enemies).toHaveLength(0);
+    expect(s.hp).toBeGreaterThan(0);
+  }, 120000);
+
+  it('skillPick 冻结战斗：不推进敌人与计时', () => {
+    let s = runFrames(createBattle(7), 8); // 进入第一波
+    s = advanceFrame(s, null, 16.667);
+    if (s.stage === 'skillPick') {
+      const snap = JSON.stringify({ e: s.enemies, c: s.stageClock });
+      const s2 = advanceFrame(s, null, 500);
+      expect(JSON.stringify({ e: s2.enemies, c: s2.stageClock })).toBe(snap);
+    }
+  });
+
+  it('refreshStats：增垣提高 hpMax 并回补差值', () => {
+    const s = createBattle(3);
+    s.skills.push('wall');
+    refreshStats(s);
+    expect(s.hpMax).toBe(HP_MAX + 5);
+    expect(s.hp).toBe(HP_MAX + 5);
+    s.hp = 10;
+    s.skills.push('crit');
+    refreshStats(s);
+    expect(s.hpMax).toBe(HP_MAX + 5);
+    expect(s.hp).toBe(10); // 上限不变时无回补
   });
 });

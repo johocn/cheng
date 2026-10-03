@@ -9,6 +9,7 @@ export function dealDamage(state, enemyId, amount) {
   if (e.hp <= 0) {
     const reward = ENEMY_TYPES[e.type].reward;
     state.coins += reward;
+    state.killCount = (state.killCount || 0) + 1; // 击杀统计（饮血回血按总杀数取模）
     state.enemies = state.enemies.filter((x) => x.id !== enemyId);
     return { killed: true, reward };
   }

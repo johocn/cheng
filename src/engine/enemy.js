@@ -37,24 +37,34 @@ export function pathPoint(laneIdx, t) {
   return { x: last.bx, y: last.by };
 }
 
-export function spawnEnemy(state, type, laneIdx) {
+export function spawnEnemy(state, type, laneIdx, mul = 1) {
   const def = ENEMY_TYPES[type];
   state.enemies.push({
     id: state.nextEnemyId++,
     type,
     lane: laneIdx,
     t: 0,
-    hp: def.hp,
-    hpMax: def.hp,
+    hp: def.hp * mul,
+    hpMax: def.hp * mul,
+    speedMul: mul, // 速度成长与 slow/stun 合成在 moveEnemies
+    slowT: 0, stunT: 0, burnT: 0,
   });
 }
 
-// 推进所有敌人；t≥1 的判定漏怪并移出，返回 [{type, dmg}]
+// 推进所有敌人（含 stun 冻结 / slow 减速 / burn 灼烧）；
+// t≥1 的判定漏怪并移出，返回 [{type, dmg}]——扣血由 state.js 统一结算（shield 免伤）
 export function moveEnemies(state, dtSec) {
   const leaked = [];
   const survivors = [];
   for (const e of state.enemies) {
-    e.t += (ENEMY_TYPES[e.type].speed * dtSec) / laneLength(e.lane);
+    if (e.stunT > 0) { e.stunT -= dtSec; survivors.push(e); continue; }
+    if (e.slowT > 0) { e.slowT -= dtSec; }
+    if (e.burnT > 0) {
+      e.burnT -= dtSec;
+      e.hp -= e.hpMax * 0.02 * dtSec * (e.burnMul || 1);
+    }
+    const slow = e.slowT > 0 ? 0.7 : 1;
+    e.t += (ENEMY_TYPES[e.type].speed * (e.speedMul || 1) * slow * dtSec) / laneLength(e.lane);
     if (e.t >= 1) {
       leaked.push({ type: e.type, dmg: ENEMY_TYPES[e.type].dmg });
     } else {
@@ -63,4 +73,15 @@ export function moveEnemies(state, dtSec) {
   }
   state.enemies = survivors;
   return leaked;
+}
+
+// 死亡清尸：hp≤0 的敌人入金币并移除（锦囊/灼烧/大招伤害的统一收口）
+export function reapDead(state) {
+  for (const e of state.enemies) {
+    if (e.hp <= 0) {
+      state.coins += ENEMY_TYPES[e.type].reward;
+      state.killCount = (state.killCount || 0) + 1;
+    }
+  }
+  state.enemies = state.enemies.filter((e) => e.hp > 0);
 }
