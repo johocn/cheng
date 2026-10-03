@@ -1,0 +1,10 @@
+# 立绘母版仅存档不入库（3-4MB/张，游戏内走压缩资产）
+docs/samples/
+
+# 依赖与构建
+node_modules/
+dist/
+
+# 系统文件
+Thumbs.db
+.DS_Store
