@@ -4,6 +4,7 @@ import { HEROES, BOND_HEROES, chapterName, chapterMul } from '../meta/heroes.js'
 import { signinClaimable } from '../meta/signin.js';
 import { currentSkin } from '../render/theme.js';
 import { KAI, C, panel, topbar, heroSeal, btn, starsText } from './ui.js';
+import { drawPortrait } from './portrait.js';
 
 // 布局常量（720×1280）
 export const HOME_LAYOUT = {
@@ -41,7 +42,7 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun') {
   ids.forEach((id, i) => {
     const cx = HOME_LAYOUT.heroX0 + i * HOME_LAYOUT.heroStep;
     const h = save.heroes[id];
-    heroSeal(ctx, cx, HOME_LAYOUT.heroY, HOME_LAYOUT.heroR, HEROES[id].char, h.owned, id === selectedHero && h.owned);
+    drawPortrait(ctx, cx, HOME_LAYOUT.heroY, HOME_LAYOUT.heroR, id, { owned: h.owned, selected: id === selectedHero && h.owned });
     ctx.fillStyle = h.owned ? C.ink : C.gray;
     ctx.font = `600 20px ${KAI}`;
     ctx.textAlign = 'center';

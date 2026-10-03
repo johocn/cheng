@@ -1,6 +1,6 @@
 // scripts/build-wx.mjs — 微信小游戏构建：vite lib 单文件 bundle + game.json 拷贝 + 首包断言
 import { build } from 'vite';
-import { copyFileSync, statSync, mkdirSync } from 'node:fs';
+import { copyFileSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -30,10 +30,20 @@ await build({
 mkdirSync(distDir, { recursive: true });
 copyFileSync(join(wxDir, 'game.json'), join(distDir, 'game.json'));
 
-// 首包体积硬指标（spec 第二章：≤4MB）
-const kb = Math.round(statSync(join(distDir, 'game.js')).size / 1024);
-console.log(`[wx] dist/game.js = ${kb} KB`);
-if (kb > 4096) {
+// M6 立绘资产：src/assets/heroes → dist/heroes（wx.createImage 相对路径加载）
+const heroesDir = join(root, 'src/assets/heroes');
+const distHeroes = join(distDir, 'heroes');
+mkdirSync(distHeroes, { recursive: true });
+for (const f of readdirSync(heroesDir)) copyFileSync(join(heroesDir, f), join(distHeroes, f));
+
+// 首包体积硬指标（spec 第二章：≤4MB）= game.js + heroes 立绘合计
+let totalKb = Math.round(statSync(join(distDir, 'game.js')).size / 1024);
+let heroKb = 0;
+for (const f of readdirSync(distHeroes)) heroKb += statSync(join(distHeroes, f)).size;
+heroKb = Math.round(heroKb / 1024);
+totalKb += heroKb;
+console.log(`[wx] dist/game.js = ${totalKb - heroKb} KB + heroes = ${heroKb} KB，合计 ${totalKb} KB`);
+if (totalKb > 4096) {
   console.error('[wx] 首包超过 4MB 上限，需拆分包或远程资源');
   process.exit(1);
 }

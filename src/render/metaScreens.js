@@ -3,7 +3,8 @@ import { LOGICAL_W, LOGICAL_H } from '../engine/config.js';
 import { HEROES, GACHA_POOL, STAR_MAX } from '../meta/heroes.js';
 import { levelCap, levelUpCost, fragNeeded } from '../meta/meta.js';
 import { PULL_COST, TEN_COST } from '../meta/gacha.js';
-import { KAI, C, panel, topbar, heroSeal, btn, starsText } from './ui.js';
+import { KAI, C, panel, topbar, btn, starsText } from './ui.js';
+import { drawPortrait } from './portrait.js';
 
 export const DETAIL_LAYOUT = {
   backBtn: { x: 20, y: 110, w: 110, h: 64 },
@@ -23,7 +24,7 @@ export function drawDetail(ctx, save, heroId) {
   const L = DETAIL_LAYOUT;
 
   btn(ctx, L.backBtn.x, L.backBtn.y, L.backBtn.w, L.backBtn.h, '← 返 回', 'ghost', 26);
-  heroSeal(ctx, L.portrait.cx, L.portrait.cy, L.portrait.r, def.char, h.owned, true);
+  drawPortrait(ctx, L.portrait.cx, L.portrait.cy, L.portrait.r, heroId, { owned: h.owned, selected: true });
   ctx.fillStyle = C.gold; ctx.font = `700 34px ${KAI}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(starsText(h.stars, STAR_MAX), L.portrait.cx, L.portrait.cy + L.portrait.r + 40);
@@ -96,7 +97,7 @@ export function drawGacha(ctx, save, gachaResult) {
   // 卡池英雄一览（6 命小牌 + 获取态）：cx_i = 95 + 110i，末张 645 + r42 ≤ 696 不出画
   GACHA_POOL.forEach((id, i) => {
     const cx = 95 + i * 110;
-    heroSeal(ctx, cx, L.poolPanel.y + 300, 42, HEROES[id].char, save.heroes[id].owned, false);
+    drawPortrait(ctx, cx, L.poolPanel.y + 300, 42, id, { owned: save.heroes[id].owned, selected: false });
     ctx.fillStyle = save.heroes[id].owned ? C.ink : C.gray;
     ctx.font = `600 20px ${KAI}`;
     ctx.fillText(HEROES[id].name, cx, L.poolPanel.y + 380);
@@ -130,7 +131,7 @@ function drawGachaResult(ctx, save, results) {
     const cx = 130 + col * L.resultCell.step;
     const cy = L.resultGridY + row * (L.resultCell.h + 40) + L.resultCell.h / 2;
     const ownedBefore = r.dup; // dup = 抽取时已拥有
-    heroSeal(ctx, cx, cy, 56, HEROES[r.heroId].char, true, true);
+    drawPortrait(ctx, cx, cy, 56, r.heroId, { owned: true, selected: true });
     ctx.fillStyle = ownedBefore ? C.mut : C.gold;
     ctx.font = `700 24px ${KAI}`;
     ctx.fillText(ownedBefore ? `碎片+${r.frags}` : 'NEW!', cx, cy + 88);

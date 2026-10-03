@@ -22,12 +22,14 @@ import { spendStamina, regenStamina, BATTLE_COST, STAMINA_MAX } from '../meta/st
 import { grantMonthlyDaily } from '../meta/iap.js';
 import { todayStr } from '../meta/save.js';
 import { setSkin, currentSkin } from '../render/theme.js';
+import { loadHeroPortraits } from '../platform/img.js';
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
   const save = loadSave();
   touchDaily(save); // 跨日重置免费抽计数
   setSkin(save.cosmetics.skin || 'ink');       // 启动恢复皮肤
+  loadHeroPortraits(Object.keys(save.heroes)); // M6 立绘预热（失败静默回退圆牌）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
   let screen = 'home';        // home | detail | gacha | battle | result | signin
