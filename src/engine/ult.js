@@ -20,6 +20,8 @@ export function tryStartUlt(state) {
       need--;
     }
   }
+  state.stats = state.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
+  state.stats.ultCount++;
   state.ult = { t: 0 };
   return true;
 }

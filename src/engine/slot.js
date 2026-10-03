@@ -43,6 +43,8 @@ export function useSlot(state, i) {
         state.slots[j] = null;
       }
     }
+    state.stats = state.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
+    state.stats.mergeCount++;
     return true;
   }
   applyItemEffect(state, it);

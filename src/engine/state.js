@@ -32,6 +32,7 @@ export function createBattle(seed = 20260304, opts = {}) {
     atkBuffT: 0, shieldT: 0,
     ult: null,
     leechCount: 0,     // 饮血已结算次数（killCount/10 的增量差）
+    stats: { mergeCount: 0, ultCount: 0, bossKills: 0 }, // M6 任务埋点（战斗结束由 core 上报）
   };
   // M3 局外注入：英雄攻击乘区 / 章节敌方 hp 系数（缺省 ×1 = 与 M2 完全一致）
   state.metaAtkMul = opts.atkMul || 1;

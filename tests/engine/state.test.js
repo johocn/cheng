@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, test } from 'vitest';
 import { createBattle, advanceFrame, refreshStats } from '../../src/engine/state.js';
 import { startWave, updateWave } from '../../src/engine/wave.js';
 import { TOTAL_WAVES, HP_MAX } from '../../src/engine/config.js';
+import { useSlot } from '../../src/engine/slot.js';
+import { tryStartUlt } from '../../src/engine/ult.js';
+import { spawnEnemy, reapDead } from '../../src/engine/enemy.js';
 
 function runFrames(state, seconds, inputs) {
   let ms = seconds * 1000;
@@ -149,5 +152,32 @@ describe('M6 章节包注入', () => {
     expect(s3.chapterPackRate).toBeCloseTo(0.2, 5);
     const s8 = createBattle(1, { chapterN: 8 });   // 8→packIndex 7%6=1
     expect(s8.packIdx).toBe(1);
+  });
+});
+
+describe('M6 stats 计数', () => {
+  test('createBattle 初始化 stats 三计数', () => {
+    const s = createBattle(1);
+    expect(s.stats).toMatchObject({ mergeCount: 0, ultCount: 0, bossKills: 0 });
+  });
+
+  test('锦囊三合一 mergeCount+1 / 大招 ultCount+1 / 杀帅 bossKills+1', () => {
+    const s = createBattle(1);
+    // 三合一：凑 3 张同型
+    s.slots[0] = { id: 1, type: 'qinglong', tier: 1 };
+    s.slots[1] = { id: 2, type: 'qinglong', tier: 1 };
+    s.slots[2] = { id: 3, type: 'qinglong', tier: 1 };
+    useSlot(s, 0);
+    expect(s.stats.mergeCount).toBe(1);
+    // 大招：凑 2 计策
+    s.slots[3] = { id: 4, type: 'jice', tier: 1 };
+    s.slots[4] = { id: 5, type: 'jice', tier: 1 };
+    expect(tryStartUlt(s)).toBe(true);
+    expect(s.stats.ultCount).toBe(1);
+    // 杀帅
+    spawnEnemy(s, 'shuai', 0);
+    s.enemies[0].hp = 0;
+    reapDead(s);
+    expect(s.stats.bossKills).toBe(1);
   });
 });

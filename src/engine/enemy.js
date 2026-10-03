@@ -97,6 +97,10 @@ export function reapDead(state) {
     if (e.hp <= 0) {
       state.coins += ENEMY_TYPES[e.type].reward;
       state.killCount = (state.killCount || 0) + 1;
+      if (e.type === 'shuai') {
+        state.stats = state.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
+        state.stats.bossKills++;
+      }
     }
   }
   state.enemies = state.enemies.filter((e) => e.hp > 0);

@@ -23,11 +23,13 @@ import { grantMonthlyDaily } from '../meta/iap.js';
 import { todayStr } from '../meta/save.js';
 import { setSkin, currentSkin } from '../render/theme.js';
 import { loadHeroPortraits } from '../platform/img.js';
+import { touchQuests, reportQuest, questClaimable, DAILY_QUESTS, WEEKLY_QUESTS } from '../meta/quests.js';
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
   const save = loadSave();
   touchDaily(save); // 跨日重置免费抽计数
+  touchQuests(save); // M6 任务日/周/赛季刷新（跨日 tick 内亦调用）
   setSkin(save.cosmetics.skin || 'ink');       // 启动恢复皮肤
   loadHeroPortraits(Object.keys(save.heroes)); // M6 立绘预热（失败静默回退圆牌）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
@@ -39,9 +41,17 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   let gachaResult = null;     // 抽卡结果浮层（单条或数组，null=无浮层）
   let adBusy = false;         // 激励视频观看中，防重入
   let shopPick = null;        // 首充 SR 自选浮层
+  let questTab = 'daily';     // M6 军务面板当前页签（daily|weekly|pass）
   let reviveUsed = false;     // 本局复活次数（0/1）
   let toastMsg = '', toastUntil = 0;
   function showToast(msg) { toastMsg = msg; toastUntil = Date.now() + 2600; }
+  // M6 广告埋点：任何激励视频成功回调计 ad_watch（任务进度）
+  function rewarded(slot, cb) {
+    showRewarded(slot, {
+      ...cb,
+      onReward() { reportQuest(save, 'ad_watch', 1); cb.onReward && cb.onReward(); },
+    });
+  }
   let last = 0;
   const SPEED = Math.max(1, Math.min(10, getSpeed() || 1)); // 验收快进倍率 1-10，默认 1
 
@@ -102,7 +112,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'skin' && !adBusy) {
         if (!save.cosmetics.shadowOwned) {
           adBusy = true;
-          showRewarded('skin', {
+          rewarded('skin', {
             onReward() {
               adBusy = false;
               save.cosmetics.shadowOwned = true;
@@ -133,7 +143,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'double' && !adBusy) {
         adBusy = true;
         // M4：翻倍接激励视频（H5 直发行为不变；wx 桩 800ms 后入账）
-        showRewarded('double', {
+        rewarded('double', {
           onReward() {
             adBusy = false;
             resultData.doubled = true;
@@ -149,7 +159,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'back') screen = 'home';
       if (hit.action === 'claim' && !adBusy) {
         adBusy = true;
-        showRewarded('signin', {
+        rewarded('signin', {
           onReward() {
             adBusy = false;
             const r = claimSignin(save, createRng((Date.now() & 0xffffffff) >>> 0));
@@ -191,7 +201,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     } else if (screen === 'revive') {
       if (hit.action === 'revive' && !adBusy) {
         adBusy = true;
-        showRewarded('revive', {
+        rewarded('revive', {
           onReward() {
             adBusy = false;
             reviveUsed = true;
@@ -214,12 +224,13 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       // M4：免费抽接激励视频
       if (adBusy) return;
       adBusy = true;
-      showRewarded('freePull', {
+      rewarded('freePull', {
         onReward() {
           adBusy = false;
           save.daily.freePulls += 1;
           gachaResult = pullOnce(rng, ownedIds);
           applyGacha(save, gachaResult); // 新英雄解锁★1 / 重复转碎片
+          reportQuest(save, 'gacha', ten ? 10 : 1);
           persistSave(save);
         },
         onFail() { adBusy = false; },
@@ -230,6 +241,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     save.wallet.diamonds -= cost;
     gachaResult = ten ? pullTen(rng, ownedIds) : pullOnce(rng, ownedIds);
     applyGacha(save, gachaResult);
+    reportQuest(save, 'gacha', ten ? 10 : 1);
     persistSave(save);
   }
 
@@ -240,6 +252,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       showToast(`体力不足（${save.wallet.stamina}/${STAMINA_MAX}）· 每 5 分钟恢复 1 点`);
       return;
     }
+    reportQuest(save, 'stamina_spend', BATTLE_COST);
     persistSave(save);
     // 首版战斗固定赵云上阵；注入局外攻击乘区与章节敌军 hp 系数
     const bonus = { atkMul: atkMul(save, 'zhaoyun'), chapterMul: chapterMul(chapterN) };
@@ -253,6 +266,13 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   function finishBattle() {
     const win = battleState.stage === 'victory';
+    // M6 战斗埋点：局内计数整局上报（胜/负均计）
+    const st = battleState.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
+    if (st.mergeCount) reportQuest(save, 'merge', st.mergeCount);
+    if (st.ultCount) reportQuest(save, 'ult', st.ultCount);
+    if (st.bossKills) reportQuest(save, 'boss_kill', st.bossKills);
+    if (win) reportQuest(save, 'battle_win', 1);
+    touchQuests(save); // 结算时跨日/跨周补偿刷新
     resultData = {
       win,
       chapterN: battleState.chapterN,
@@ -300,6 +320,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (save.daily.date !== todayStr()) { // 跨日：免费抽/签到重置 + 月卡发放
       touchDaily(save);
       grantMonthlyDaily(save);
+      touchQuests(save); // M6 任务日/周/赛季刷新
       persistSave(save);
     }
     const dtMs = Math.min(now - last, 100); // 切后台回来防大步积压
