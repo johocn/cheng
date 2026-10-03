@@ -1,5 +1,6 @@
 // render/ui.js — M3 四屏共享控件：楷体常量/水墨色板/羊皮纸面板/朱砂金按钮/顶栏资源条
 import { LOGICAL_W } from '../engine/config.js';
+import { STAMINA_MAX } from '../meta/stamina.js';
 
 export const KAI = '"KaiTi","STKaiti","楷体",serif';
 export const C = {
@@ -7,6 +8,7 @@ export const C = {
   ink: '#1f1b16', bronze: '#8b6914', gold: '#c9a227',
   cinnabar: '#9e2a1e', mut: '#8a7a5f', gray: '#a89c86',
   ok: '#3e7a3a',
+  paperHi: '#f6efdd', paperDeep: '#d9c9a8',
 };
 
 // 圆角矩形路径（arcTo 四角）
@@ -23,7 +25,7 @@ export function roundRect(ctx, x, y, w, h, r) {
 // 羊皮纸面板：双层古铜描边
 export function panel(ctx, x, y, w, h, r = 10) {
   const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, '#f4ecd8'); g.addColorStop(1, '#d9c9a8');
+  g.addColorStop(0, C.paperHi); g.addColorStop(1, C.paperDeep);
   ctx.fillStyle = g;
   roundRect(ctx, x, y, w, h, r); ctx.fill();
   ctx.strokeStyle = C.bronze; ctx.lineWidth = 3;
@@ -70,7 +72,7 @@ export function topbar(ctx, save, title) {
   const items = [
     `🪙 ${save.wallet.coins}`,
     `💎 ${save.wallet.diamonds}`,
-    `⚡ ${save.wallet.stamina}/60`,
+    `⚡ ${save.wallet.stamina ?? 0}/${STAMINA_MAX}`,
   ];
   ctx.font = `600 24px ${KAI}`;
   let x = LOGICAL_W - 30;
@@ -91,7 +93,7 @@ export function heroSeal(ctx, cx, cy, r, char, owned = true, selected = false) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   const g = ctx.createRadialGradient(cx, cy - r * 0.3, r * 0.2, cx, cy, r);
-  g.addColorStop(0, '#f6efdd'); g.addColorStop(1, '#d9c9a8');
+  g.addColorStop(0, C.paperHi); g.addColorStop(1, C.paperDeep);
   ctx.fillStyle = owned ? g : 'rgba(168,156,134,0.35)';
   ctx.fill();
   ctx.strokeStyle = owned ? (selected ? C.gold : C.bronze) : C.gray;

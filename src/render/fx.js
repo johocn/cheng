@@ -1,8 +1,9 @@
 // render/fx.js — 大招「七进七出」2.8s 分镜与通用战斗特效（只读 state，逐帧重绘）
 import { HERO_POS, ULT_CAST_DUR } from '../engine/config.js';
 
-const GOLD = '#c9a227';
 const KAI = '"KaiTi","STKaiti","楷体",serif';
+// 金色随皮肤色板（皮影戏下为鎏金亮金）
+function gold() { return (typeof globalThis.Art !== 'undefined' && globalThis.Art) ? globalThis.Art.C.gold : '#c9a227'; }
 const SEG_DUR = 0.22; // 七段突刺：每段 0.22s（7 段共 1.54s ≈ 演出前 0.57）
 
 // 七段方向：黄金角取模伪随机（确定性；state.frame 逐帧递增，直接取模驱动方向会每帧抖动，
@@ -65,7 +66,7 @@ function drawAfterimage(ctx, x, y, r, alpha) {
   ctx.fill();
   for (let k = 0; k < 3; k++) {
     ctx.globalAlpha = alpha * (1 - k * 0.28);
-    ctx.strokeStyle = GOLD;
+    ctx.strokeStyle = gold();
     ctx.lineWidth = 3.5 - k;
     ctx.beginPath();
     ctx.arc(x, y, r - k * 5, 0, Math.PI * 2);
@@ -101,7 +102,7 @@ function drawShockwave(ctx, p) {
   ctx.beginPath();
   ctx.arc(HERO_POS.x, HERO_POS.y, Math.max(1, r - 16), 0, Math.PI * 2);
   ctx.stroke();
-  ctx.strokeStyle = GOLD; // 主环
+  ctx.strokeStyle = gold(); // 主环
   ctx.lineWidth = 12 - 10 * q;
   ctx.beginPath();
   ctx.arc(HERO_POS.x, HERO_POS.y, r, 0, Math.PI * 2);

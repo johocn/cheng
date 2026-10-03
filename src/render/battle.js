@@ -20,7 +20,8 @@ const ULT_CX = 600, ULT_CY = 985, ULT_R = 52;
 export function drawBattle(ctx, state) {
   const Art = globalThis.Art;
   const shaken = state.ult ? beginUltShake(ctx, state) : false; // 大招尾段屏抖（save+translate）
-  Art.drawBattleBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
+  if (Art.skinId === 'shadow') Art.drawShadowBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
+  else Art.drawBattleBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
   drawLanes(ctx);
   for (const e of state.enemies) {
     const p = pathPoint(e.lane, e.t);
@@ -39,8 +40,9 @@ export function drawBattle(ctx, state) {
 }
 
 function drawLanes(ctx) {
+  const Art = globalThis.Art;
   ctx.save();
-  ctx.strokeStyle = 'rgba(90,80,64,0.55)';
+  ctx.strokeStyle = Art.C.laneInk;
   ctx.lineWidth = 3;
   ctx.setLineDash([14, 10]);
   for (const lane of LANES) {
@@ -71,7 +73,7 @@ function drawWaveProgress(ctx, state) {
     ctx.save();
     Art.roundRect(ctx, x, y, w, h, 4);
     ctx.clip();
-    ctx.fillStyle = '#9e2a1e';
+    ctx.fillStyle = Art.C.seal;
     ctx.fillRect(x, y, w * ratio, h);
     ctx.restore();
   }
@@ -90,7 +92,7 @@ function drawSlotCell(ctx, x, y, w, h, item, mergeable) {
   ctx.save();
   if (!item) { // 空格：虚线框
     ctx.setLineDash([7, 5]);
-    ctx.strokeStyle = 'rgba(31,27,22,0.35)';
+    ctx.strokeStyle = 'rgba(160,136,88,0.55)';
     ctx.lineWidth = 1.5;
     Art.roundRect(ctx, x, y, w, h, 8);
     ctx.stroke();
@@ -98,8 +100,8 @@ function drawSlotCell(ctx, x, y, w, h, item, mergeable) {
     const def = ITEM_TYPES[item.type];
     const ec = ELEM_COLORS[def.elem] || '#52525b';
     const g = ctx.createLinearGradient(x, y, x, y + h);
-    g.addColorStop(0, '#f4ecd8');
-    g.addColorStop(1, '#ede4d2');
+    g.addColorStop(0, Art.C.paperHi);
+    g.addColorStop(1, Art.C.paper);
     Art.roundRect(ctx, x, y, w, h, 8);
     ctx.fillStyle = g;
     ctx.fill();
@@ -112,13 +114,13 @@ function drawSlotCell(ctx, x, y, w, h, item, mergeable) {
     ctx.restore();
     // 描边：可合成金边 4px，否则墨细边
     ctx.lineWidth = mergeable ? 4 : 1.5;
-    ctx.strokeStyle = mergeable ? '#c9a227' : 'rgba(31,27,22,0.4)';
+    ctx.strokeStyle = mergeable ? Art.C.gold : 'rgba(31,27,22,0.4)';
     Art.roundRect(ctx, x, y, w, h, 8);
     ctx.stroke();
     // 锦囊名 24px 楷体 + 元素字 13px
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#1f1b16';
+    ctx.fillStyle = Art.C.ink;
     ctx.font = 'bold 24px ' + KAI;
     ctx.fillText(def.label, x + w / 2, y + 46);
     ctx.fillStyle = ec;
@@ -126,14 +128,14 @@ function drawSlotCell(ctx, x, y, w, h, item, mergeable) {
     ctx.fillText(def.elem, x + w / 2, y + 76);
     if (mergeable) { // 右上「合」角标
       const bx = x + w - 4, by = y + 4;
-      ctx.fillStyle = '#c9a227';
+      ctx.fillStyle = Art.C.gold;
       ctx.beginPath();
       ctx.arc(bx, by, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(31,27,22,0.55)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.fillStyle = '#1f1b16';
+      ctx.fillStyle = Art.C.ink;
       ctx.font = 'bold 15px ' + KAI;
       ctx.fillText('合', bx, by + 1);
     }
@@ -199,14 +201,14 @@ function drawSkillPick(ctx, state) {
   Art.drawPanel(ctx, 60, 88, 600, 452, false);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#1f1b16';
+  ctx.fillStyle = Art.C.ink;
   ctx.font = 'bold 40px ' + KAI;
   ctx.fillText('兵 法 三 择', 360, 152);
   for (let i = 0; i < 3; i++) {
     const skill = ROGUE_SKILLS.find((s) => s.id === state.pickChoices[i]);
     if (skill) drawPickCard(ctx, 72 + i * 200, 216, 176, 252, skill);
   }
-  ctx.fillStyle = '#5a5040';
+  ctx.fillStyle = Art.C.inkSoft;
   ctx.font = '16px ' + KAI;
   ctx.fillText('—— 点选一则兵法，即刻出征 ——', 360, 508);
   ctx.restore();
@@ -217,8 +219,8 @@ function drawPickCard(ctx, x, y, w, h, skill) {
   const rc = RARITY_COLORS[skill.rarity] || RARITY_COLORS[0];
   ctx.save();
   const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, '#f6efdd');
-  g.addColorStop(1, '#ede4d2');
+  g.addColorStop(0, Art.C.paperHi);
+  g.addColorStop(1, Art.C.paper);
   Art.roundRect(ctx, x, y, w, h, 10);
   ctx.fillStyle = g;
   ctx.fill();
@@ -234,10 +236,10 @@ function drawPickCard(ctx, x, y, w, h, skill) {
   ctx.restore();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#1f1b16';
+  ctx.fillStyle = Art.C.ink;
   ctx.font = 'bold 34px ' + KAI; // 技能名
   ctx.fillText(skill.name, x + w / 2, y + 72);
-  ctx.fillStyle = '#3a332a';
+  ctx.fillStyle = Art.C.inkMid;
   ctx.font = '17px ' + KAI; // 效果（自动换行）
   wrapText(ctx, skill.desc, x + w / 2, y + 128, w - 26, 24);
   const pill = `${RARITY_NAMES[skill.rarity]} ${skill.weight}`; // 权重 pill
@@ -316,12 +318,12 @@ function banner(ctx, cx, cy, title, sub) {
   const Art = globalThis.Art;
   Art.drawPanel(ctx, cx - 190, cy - 54, 380, 108, false);
   const fs = 44;
-  ctx.fillStyle = '#1f1b16';
+  ctx.fillStyle = Art.C.ink;
   ctx.font = `bold ${fs}px "KaiTi","STKaiti","楷体",serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(title, cx, cy - 18);
-  ctx.fillStyle = '#9e2a1e';
+  ctx.fillStyle = Art.C.seal;
   ctx.font = '22px "KaiTi","STKaiti","楷体",serif';
   ctx.fillText(sub, cx, cy + 24);
 }

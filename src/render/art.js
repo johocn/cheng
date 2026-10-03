@@ -315,6 +315,40 @@
     ctx.fillRect(x, y + h * 0.42, w, h * 0.2);
   }
 
+  // ---------- 皮影戏战场背景：暗底 + 灯窗光晕 + 鎏金回纹边框 + 灯笼点缀 ----------
+  function drawShadowBackdrop(ctx, x, y, w, h) {
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(x, y, w, h);
+    // 主灯窗光晕
+    var cx = x + w / 2, cy = y + h * 0.32;
+    var glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.75);
+    glow.addColorStop(0, 'rgba(240,217,168,0.30)');
+    glow.addColorStop(0.45, 'rgba(200,150,60,0.12)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x, y, w, h);
+    // 鎏金 + 朱砂回纹边框
+    ctx.strokeStyle = 'rgba(232,192,90,0.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 10, y + 10, w - 20, h - 20);
+    ctx.strokeStyle = 'rgba(178,58,40,0.3)';
+    ctx.strokeRect(x + 16, y + 16, w - 32, h - 32);
+    // 两列灯笼点缀
+    lantern(ctx, x + w * 0.18, y + h * 0.14, 14);
+    lantern(ctx, x + w * 0.82, y + h * 0.14, 14);
+    lantern(ctx, x + w * 0.3, y + h * 0.08, 10);
+    lantern(ctx, x + w * 0.7, y + h * 0.08, 10);
+  }
+
+  function lantern(ctx, x, y, r) {
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.6);
+    g.addColorStop(0, 'rgba(240,200,110,0.85)');
+    g.addColorStop(0.5, 'rgba(200,150,60,0.4)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.6, 0, Math.PI * 2); ctx.fill();
+  }
+
   function mountain(ctx, cx, baseY, w, h, color) {
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -467,6 +501,7 @@
   // ---------- 导出 ----------
   global.Art = {
     C: C, FONT: FONT,
+    skinId: 'ink',
     drawEnemyToken: drawEnemyToken,
     drawHeroToken: drawHeroToken,
     drawBrocadeSlot: drawBrocadeSlot,
@@ -476,6 +511,7 @@
     drawUltButton: drawUltButton,
     drawHudPill: drawHudPill,
     drawBattleBackdrop: drawBattleBackdrop,
+    drawShadowBackdrop: drawShadowBackdrop,
     drawSkillCard: drawSkillCard,
     drawHeroPortrait: drawHeroPortrait,
     drawQualityTag: drawQualityTag,
