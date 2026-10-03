@@ -7,9 +7,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:h5": "vite build",
-    "build:wx": "node scripts/build-wx.mjs"
+    "build:wx": "node scripts/build-wx.mjs",
+    "heroes": "node scripts/compress-heroes.mjs"
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"
   }

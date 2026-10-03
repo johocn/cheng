@@ -1,5 +1,8 @@
 // tests/meta/heroes.test.js
 import { describe, it, expect } from 'vitest';
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   HEROES, GACHA_POOL, DUP_FRAGS, STAR_MAX, FRAGS_PER_STAR,
   CHAPTERS, CH_HERO, chapterName, chapterMul, BOND_HEROES,
@@ -39,5 +42,16 @@ describe('meta/heroes 数据表', () => {
     expect(chapterMul(3)).toBeCloseTo(2.25);
     expect(CH_HERO[0]).toBe('zhaoyun');
     expect(CH_HERO[1]).toBe('guanyu');
+  });
+});
+
+describe('M6 立绘资产', () => {
+  it('9 张立绘入库且单张 ≤80KB', () => {
+    const dir = join(fileURLToPath(new URL('.', import.meta.url)), '../../src/assets/heroes');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.webp'));
+    expect(files.length).toBe(9);
+    for (const f of files) {
+      expect(statSync(join(dir, f)).size).toBeLessThanOrEqual(80 * 1024);
+    }
   });
 });
