@@ -130,3 +130,32 @@ describe('reapDead 帧末清尸', () => {
     expect(s.killCount).toBe(1);
   });
 });
+
+describe('M6 新敌人', () => {
+  it('config 定义 投石车/藤甲兵', () => {
+    expect(ENEMY_TYPES.tou).toMatchObject({ hp: 350, speed: 22, dmg: 1, reward: 40, label: '投' });
+    expect(ENEMY_TYPES.teng).toMatchObject({ hp: 300, speed: 32, dmg: 2, reward: 25, label: '藤' });
+  });
+
+  it('藤甲兵受灼烧伤害 ×2', () => {
+    const s = makeState();
+    spawnEnemy(s, 'teng', 0);
+    const teng = s.enemies[0];
+    teng.burnT = 1;                 // 灼烧 1s
+    const hp0 = teng.hp;
+    moveEnemies(s, 1);              // 推进 1s
+    const burned = hp0 - teng.hp;
+    // 普通敌人灼烧每秒 2% hpMax；藤甲 ×2 = 4% hpMax
+    expect(burned).toBeCloseTo(teng.hpMax * 0.04, 5);
+  });
+
+  it('非藤甲兵灼烧仍为 2% hpMax', () => {
+    const s = makeState();
+    spawnEnemy(s, 'bing', 0);
+    const b = s.enemies[0];
+    b.burnT = 1;
+    const hp0 = b.hp;
+    moveEnemies(s, 1);
+    expect(hp0 - b.hp).toBeCloseTo(b.hpMax * 0.02, 5);
+  });
+});

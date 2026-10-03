@@ -23,7 +23,7 @@ describe('M1 基础数值', () => {
 
   it('敌人类型齐全且数值为正', () => {
     expect(Object.keys(ENEMY_TYPES).sort())
-      .toEqual(['bing', 'gong', 'qi', 'shuai']);
+      .toEqual(['bing', 'gong', 'qi', 'shuai', 'teng', 'tou']);
     for (const def of Object.values(ENEMY_TYPES)) {
       expect(def.hp).toBeGreaterThan(0);
       expect(def.speed).toBeGreaterThan(0);

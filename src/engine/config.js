@@ -19,6 +19,8 @@ export const ENEMY_TYPES = {
   qi:    { hp: 220, speed: 50, dmg: 2, reward: 20, label: '骑' },
   gong:  { hp: 80,  speed: 30, dmg: 1, reward: 15, label: '弓' },
   shuai: { hp: 500, speed: 24, dmg: 4, reward: 60, label: '帅' },
+  tou:   { hp: 350, speed: 22, dmg: 1, reward: 40, label: '投' },
+  teng:  { hp: 300, speed: 32, dmg: 2, reward: 25, label: '藤' },
 };
 
 // 三条进攻路径（折线拐点），均终于 HERO_POS

@@ -61,7 +61,9 @@ export function moveEnemies(state, dtSec) {
     if (e.slowT > 0) { e.slowT -= dtSec; }
     if (e.burnT > 0) {
       e.burnT -= dtSec;
-      e.hp -= e.hpMax * 0.02 * dtSec * (e.burnMul || 1);
+      // M6 藤甲兵元素弱点：受灼烧伤害 ×2
+      const burnK = e.type === 'teng' ? 2 : 1;
+      e.hp -= e.hpMax * 0.02 * dtSec * burnK * (e.burnMul || 1);
     }
     const slow = e.slowT > 0 ? 0.7 : 1;
     e.t += (ENEMY_TYPES[e.type].speed * (e.speedMul || 1) * slow * dtSec) / laneLength(e.lane);
