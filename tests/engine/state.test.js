@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createBattle, advanceFrame, refreshStats } from '../../src/engine/state.js';
+import { startWave, updateWave } from '../../src/engine/wave.js';
 import { TOTAL_WAVES, HP_MAX } from '../../src/engine/config.js';
 
 function runFrames(state, seconds, inputs) {
@@ -105,5 +106,35 @@ describe('M2 主状态机', () => {
     refreshStats(s);
     expect(s.hpMax).toBe(HP_MAX + 5);
     expect(s.hp).toBe(10); // 上限不变时无回补
+  });
+});
+
+describe('M3 局外注入', () => {
+  it('createBattle 默认零回归：无 opts 时行为与 M2 完全一致', () => {
+    const a = createBattle(20260304);
+    const b = createBattle(20260304, {});
+    expect(a.heroStat.atk).toBe(b.heroStat.atk);
+    expect(a.heroStat.atk).toBeCloseTo(60); // 基础攻击不变
+  });
+
+  it('atkMul 注入 heroStat.atk；refreshStats 技能重算后仍保留局外乘区', () => {
+    const s = createBattle(1, { atkMul: 1.5 });
+    expect(s.heroStat.atk).toBeCloseTo(90);
+    // 模拟技能重算：refreshStats 后 meta 乘区不丢
+    const s2 = createBattle(1, { atkMul: 2 });
+    s2.skills.push('atk');
+    refreshStats(s2); // computeStats: 60×1.2=72 → ×2 = 144
+    expect(s2.heroStat.atk).toBeCloseTo(144);
+  });
+
+  it('chapterMul=1.5 时敌军 hp ×1.5，速度不变', () => {
+    const s = createBattle(1, { chapterMul: 1.5 });
+    s.wave = 1;
+    startWave(s);
+    // 快进到第一只刷出（首事件 at=0.5s）
+    updateWave(s, 1.0);
+    const e = s.enemies[0];
+    expect(e.hpMax).toBeCloseTo(100 * 1.5); // bing 100 × 波1成长1 × 章节系数1.5
+    expect(e.speedMul).toBe(1);             // 速度不受章节系数影响
   });
 });

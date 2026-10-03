@@ -37,16 +37,16 @@ export function pathPoint(laneIdx, t) {
   return { x: last.bx, y: last.by };
 }
 
-export function spawnEnemy(state, type, laneIdx, mul = 1) {
+export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1) {
   const def = ENEMY_TYPES[type];
   state.enemies.push({
     id: state.nextEnemyId++,
     type,
     lane: laneIdx,
     t: 0,
-    hp: def.hp * mul,
-    hpMax: def.hp * mul,
-    speedMul: mul, // 速度成长与 slow/stun 合成在 moveEnemies
+    hp: def.hp * mul * hpMul,    // hpMul：章节敌方 hp 系数（M3 局外注入）
+    hpMax: def.hp * mul * hpMul,
+    speedMul: mul, // 速度成长与 slow/stun 合成在 moveEnemies（不随章节系数放大）
     slowT: 0, stunT: 0, burnT: 0,
   });
 }

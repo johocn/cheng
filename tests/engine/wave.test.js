@@ -25,7 +25,7 @@ describe('startWave — WAVE_COMPS 生成', () => {
     expect(s.stage).toBe('wave');
     expect(s.stageClock).toBe(0);
     expect(s.spawnQueue).toHaveLength(compCount(1)); // w1: 8 bing
-    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1 });
+    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1, chMul: 1 }); // chMul：M3 章节系数，无注入时默认 ×1
   });
 
   it('按组成表生成类型与数量，lane i%3 轮转', () => {

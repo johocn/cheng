@@ -13,8 +13,8 @@ import { tryStartUlt, tickUlt, canUlt } from './ult.js';
 const TICK = 1000 / 60;   // 16.667ms 固定步长
 const INTERVAL_SECS = 2.5; // 波间歇秒数（开场与每波 skillPick 后由 state.js 编排）
 
-export function createBattle(seed = 20260304) {
-  return {
+export function createBattle(seed = 20260304, opts = {}) {
+  const state = {
     frame: 0,
     stage: 'interval',
     stageClock: 0,
@@ -33,12 +33,18 @@ export function createBattle(seed = 20260304) {
     ult: null,
     leechCount: 0,     // 饮血已结算次数（killCount/10 的增量差）
   };
+  // M3 局外注入：英雄攻击乘区 / 章节敌方 hp 系数（缺省 ×1 = 与 M2 完全一致）
+  state.metaAtkMul = opts.atkMul || 1;
+  state.chapterMul = opts.chapterMul || 1;
+  state.heroStat.atk *= state.metaAtkMul;
+  return state;
 }
 
 // pickSkill 后重算派生属性；增垣提高 hpMax 时回补差值
 export function refreshStats(state) {
   const prevMax = state.heroStat.hpMax;
   state.heroStat = computeStats(state.skills);
+  state.heroStat.atk *= state.metaAtkMul || 1; // 局外乘区不因技能重算丢失（M3）
   state.hpMax = state.heroStat.hpMax;
   if (state.hpMax > prevMax) state.hp += state.hpMax - prevMax;
   if (state.hp > state.hpMax) state.hp = state.hpMax;

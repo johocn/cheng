@@ -3,17 +3,18 @@
 import { WAVE_COMPS, TOTAL_WAVES, SPAWN_GAP_MIN, ENEMY_GROWTH } from './config.js';
 import { spawnEnemy } from './enemy.js';
 
-// 波开始：构建该波刷怪队列 [{ at(波内秒), type, lane, mul }]，按时间升序
+// 波开始：构建该波刷怪队列 [{ at(波内秒), type, lane, mul, chMul }]，按时间升序
 export function startWave(state) {
   const comp = WAVE_COMPS[state.wave - 1];
   const mul = 1 + (state.wave - 1) * ENEMY_GROWTH;
+  const chMul = state.chapterMul || 1; // 章节敌方 hp 系数（M3 局外注入，默认 ×1 零回归）
   const events = [];
   let at = 0.5;
   let lane = 0;
   for (const [type, count] of comp) {
     const gap = Math.max(SPAWN_GAP_MIN, 6 / count);
     for (let i = 0; i < count; i++) {
-      events.push({ at, type, lane, mul });
+      events.push({ at, type, lane, mul, chMul });
       at += gap;
       lane = (lane + 1) % 3;
     }
@@ -30,7 +31,7 @@ export function updateWave(state, dtS) {
   state.stageClock += dtS;
   while (state.spawnQueue.length && state.spawnQueue[0].at <= state.stageClock) {
     const ev = state.spawnQueue.shift();
-    spawnEnemy(state, ev.type, ev.lane, ev.mul);
+    spawnEnemy(state, ev.type, ev.lane, ev.mul, ev.chMul);
   }
   if (!state.spawnQueue.length && state.enemies.length === 0) {
     state.stage = state.wave >= TOTAL_WAVES ? 'victory' : 'skillPick';
