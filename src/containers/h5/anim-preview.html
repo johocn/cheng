@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>七进七出 · 45° 人物动画预览</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at 50% 0%, #2c2720 0%, #1f1b16 60%);
+    color: #e8dcc4;
+    font-family: "KaiTi", "STKaiti", "楷体", serif;
+    padding: 20px;
+  }
+  h1 { text-align: center; color: #c9a227; letter-spacing: 8px; font-size: 22px; }
+  .sub { text-align: center; color: #9a8f7c; font-size: 12px; letter-spacing: 3px; margin: 4px 0 20px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 1100px; margin: 0 auto; }
+  .cell {
+    background: linear-gradient(180deg, #332d24, #221e18);
+    border: 1px solid #8b6914;
+    box-shadow: inset 0 0 0 1px rgba(201,162,39,.25);
+    border-radius: 6px; padding: 10px; text-align: center;
+  }
+  .cell h2 { font-size: 13px; color: #c9a227; letter-spacing: 4px; margin-bottom: 8px; border-left: 3px solid #9e2a1e; padding-left: 8px; text-align: left; }
+  canvas { display: block; }
+  .stage { width: 640px; }
+  footer { text-align: center; color: #6f6553; font-size: 11px; margin-top: 18px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<h1>四十五度视角 · 人物动画</h1>
+<div class="sub">部件化程序动画 · 行走/骑行/拉弓/突刺 · 零图片资源</div>
+
+<div class="grid">
+  <div class="cell"><h2>行军方阵（行走循环）</h2><canvas id="c-march" width="640" height="120"></canvas></div>
+  <div class="cell"><h2>三径迎敌（战场实况）</h2><canvas id="c-lanes" width="640" height="220"></canvas></div>
+  <div class="cell" style="flex:0 0 auto;"><h2>赵云 · 待机 / 突刺 / 大招</h2><canvas id="c-hero" width="640" height="150"></canvas></div>
+</div>
+
+<footer>步兵 · 弓兵 · 骑兵 · 精英帅 · 赵云白马银枪 —— 全部 Canvas 部件化绘制</footer>
+
+<script src="../../render/characters45.js"></script>
+<script>
+(function () {
+  var CH = window.Characters45;
+  var playing = true;
+
+  // 行军方阵：4 类敌人并排行走
+  var march = document.getElementById('c-march').getContext('2d');
+  // 三径
+  var lanes = document.getElementById('c-lanes').getContext('2d');
+  // 赵云三态
+  var hero = document.getElementById('c-hero').getContext('2d');
+
+  function drawMarch(t) {
+    march.clearRect(0, 0, 640, 120);
+    var p = (t / 900) % 1;
+    CH.drawSpearman45(march, 80, 92, 1.5, p, true);
+    CH.drawArcher45(march, 210, 92, 1.5, (p + 0.25) % 1, true);
+    CH.drawCavalry45(march, 350, 95, 1.4, p, true);
+    CH.drawElite45(march, 500, 94, 1.4, (p + 0.5) % 1, true);
+  }
+
+  function drawLanes(t) {
+    lanes.clearRect(0, 0, 640, 220);
+    // 宣纸战场
+    var g = lanes.createLinearGradient(0, 0, 0, 220);
+    g.addColorStop(0, '#efe5cd'); g.addColorStop(1, '#d9c9a8');
+    lanes.fillStyle = g;
+    lanes.fillRect(0, 0, 640, 220);
+    // 远山
+    lanes.fillStyle = 'rgba(58,51,42,0.2)';
+    lanes.beginPath();
+    lanes.moveTo(80, 70);
+    lanes.quadraticCurveTo(180, 8, 300, 62);
+    lanes.quadraticCurveTo(420, 2, 560, 66);
+    lanes.lineTo(640, 66); lanes.lineTo(640, 0); lanes.lineTo(0, 0); lanes.lineTo(0, 70);
+    lanes.closePath();
+    lanes.fill();
+    // 墨径
+    lanes.strokeStyle = 'rgba(90,80,64,0.5)';
+    lanes.lineWidth = 2;
+    lanes.setLineDash([6, 7]);
+    [0.2, 0.5, 0.8].forEach(function (px) {
+      lanes.beginPath();
+      lanes.moveTo(640 * px, 66);
+      lanes.lineTo(640 * px, 150);
+      lanes.stroke();
+    });
+    lanes.setLineDash([]);
+    // 敌人下行（y 循环 70→150）
+    function laneY(offset) { return 72 + ((t / 14 + offset) % 78); }
+    CH.drawSpearman45(lanes, 128, laneY(0), 1.2, (t / 900) % 1, true);
+    CH.drawCavalry45(lanes, 320, laneY(30), 1.1, (t / 780) % 1, true);
+    CH.drawArcher45(lanes, 512, laneY(55), 1.2, (t / 900) % 1, true);
+    // 赵云守下方中央
+    CH.drawZhaoyun45(lanes, 320, 205, 1.1, (t / 2400) % 1, 'idle');
+  }
+
+  function drawHero(t) {
+    hero.clearRect(0, 0, 640, 150);
+    var slow = (t / 2400) % 1;
+    var atkPhase = (t % 1100) / 1100;
+    CH.drawZhaoyun45(hero, 110, 128, 1.6, slow, 'idle');
+    CH.drawZhaoyun45(hero, 320, 128, 1.6, atkPhase, 'attack');
+    CH.drawZhaoyun45(hero, 530, 128, 1.6, (t / 1400) % 1, 'ult');
+    hero.fillStyle = '#9a8f7c';
+    hero.font = '12px "KaiTi",serif';
+    hero.textAlign = 'center';
+    hero.fillText('待机', 110, 148);
+    hero.fillText('突刺（循环）', 320, 148);
+    hero.fillText('大招蓄势', 530, 148);
+  }
+
+  function frame(t) {
+    if (playing) {
+      drawMarch(t);
+      drawLanes(t);
+      drawHero(t);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
