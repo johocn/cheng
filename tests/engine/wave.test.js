@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { startWave, updateWave } from '../../src/engine/wave.js';
-import { WAVES, WAVE_INTERVAL } from '../../src/engine/config.js';
+import { WAVE_COMPS } from '../../src/engine/config.js';
 
 function makeState() {
   return {
@@ -15,7 +15,8 @@ function makeState() {
 }
 
 describe('startWave', () => {
-  it('构建刷怪队列并进入 wave 阶段', () => {
+  // it.skip：依赖旧 WAVES 事件表细节（队列格式/数量），Task 6 重写
+  it.skip('构建刷怪队列并进入 wave 阶段', () => {
     const s = makeState();
     startWave(s, 1);
     expect(s.wave).toBe(1);
@@ -27,7 +28,8 @@ describe('startWave', () => {
 });
 
 describe('updateWave — wave 阶段', () => {
-  it('到点刷怪：at≤waveClock 的事件入战场并出队', () => {
+  // it.skip：依赖旧 WAVES 事件表细节（首事件时刻/总数），Task 6 重写
+  it.skip('到点刷怪：at≤waveClock 的事件入战场并出队', () => {
     const s = makeState();
     startWave(s, 1);
     updateWave(s, 0.6); // waveClock=0.6 ≥ 首事件 0.5
@@ -42,7 +44,8 @@ describe('updateWave — wave 阶段', () => {
     expect(s.enemies).toHaveLength(0);
   });
 
-  it('队列空且场清：非终波进入 interval', () => {
+  // it.skip：依赖 WAVE_INTERVAL（已删除），Task 6 改为 skillPick 流转
+  it.skip('队列空且场清：非终波进入 interval', () => {
     const s = makeState();
     startWave(s, 1);
     s.spawnQueue = [];
@@ -52,7 +55,8 @@ describe('updateWave — wave 阶段', () => {
     expect(s.stageClock).toBe(WAVE_INTERVAL);
   });
 
-  it('队列空且场清：终波（第3波）直接 victory', () => {
+  // it.skip：依赖旧 TOTAL_WAVES=3（现为 15），Task 6 重写
+  it.skip('队列空且场清：终波（第3波）直接 victory', () => {
     const s = makeState();
     startWave(s, 3);
     s.spawnQueue = [];

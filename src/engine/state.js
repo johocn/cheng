@@ -1,7 +1,7 @@
 // engine/state.js — 纯函数主状态机
 // advanceFrame(state, inputs, dtMs) → newState
 // 对外纯函数（克隆入参）；内部按 16.667ms 固定 tick 确定性推进（M1 无随机）
-import { HP_MAX, HERO_POS, WAVE_INTERVAL } from './config.js';
+import { HP_MAX, HERO_POS } from './config.js';
 import { moveEnemies } from './enemy.js';
 import { heroAttack } from './hero.js';
 import { updateWave } from './wave.js';

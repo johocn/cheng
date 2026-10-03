@@ -1,12 +1,24 @@
 // engine/wave.js — 波次编排：interval → wave → 下一波 / victory
-import { WAVES, TOTAL_WAVES, WAVE_INTERVAL } from './config.js';
+// （Task 2 过渡版：WAVE_COMPS 生成刷怪队列；Task 6 将重写为 skillPick 流转 + 成长系数 mul）
+import { WAVE_COMPS, TOTAL_WAVES, SPAWN_GAP_MIN } from './config.js';
 import { spawnEnemy } from './enemy.js';
 
 export function startWave(state, waveNo) {
   state.wave = waveNo;
-  state.spawnQueue = WAVES[waveNo - 1].events.map(([at, type, lane]) => ({
-    at, type, lane,
-  }));
+  const comp = WAVE_COMPS[waveNo - 1];
+  const events = [];
+  let at = 0.5;
+  let lane = 0;
+  for (const [type, count] of comp) {
+    const gap = Math.max(SPAWN_GAP_MIN, 6 / count);
+    for (let i = 0; i < count; i++) {
+      events.push({ at, type, lane });
+      at += gap;
+      lane = (lane + 1) % 3;
+    }
+  }
+  events.sort((a, b) => a.at - b.at);
+  state.spawnQueue = events;
   state.waveClock = 0;
   state.stage = 'wave';
 }
@@ -31,6 +43,6 @@ export function updateWave(state, dtSec) {
       return;
     }
     state.stage = 'interval';
-    state.stageClock = WAVE_INTERVAL;
+    state.stageClock = 0; // WAVE_INTERVAL 已删除；Task 6 改为 skillPick 流转
   }
 }
