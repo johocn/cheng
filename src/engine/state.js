@@ -1,7 +1,7 @@
 // engine/state.js — 主状态机：纯函数入口 advanceFrame（M2）
 // 随机性来自 state.rng（随 state 克隆，确定性可复现）；玩家输入 inputs 帧首消费。
 // stage: interval → wave → skillPick →（下一波 wave…）→ victory | over
-import { HP_MAX, HERO_POS } from './config.js';
+import { HP_MAX, HERO_POS, CHAPTER_PACKS, packIndex } from './config.js';
 import { createRng } from './rng.js';
 import { moveEnemies, reapDead } from './enemy.js';
 import { heroAttack } from './hero.js';
@@ -37,6 +37,10 @@ export function createBattle(seed = 20260304, opts = {}) {
   state.metaAtkMul = opts.atkMul || 1;
   state.chapterMul = opts.chapterMul || 1;
   state.heroStat.atk *= state.metaAtkMul;
+  // M6 章节包注入：chapterN 决定波次表/敌池/词缀权重（缺省第 1 包，零回归）
+  const ci = Math.max(1, opts.chapterN || 1);
+  state.packIdx = packIndex(ci);
+  state.chapterPackRate = CHAPTER_PACKS[state.packIdx].affixRate;
   return state;
 }
 

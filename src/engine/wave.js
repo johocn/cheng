@@ -1,12 +1,13 @@
 // engine/wave.js — 波次编排：WAVE_COMPS × 成长系数生成刷怪队列
 // 流转：interval（state.js 编排）→ wave → skillPick（下一波）/ victory（终波）
-import { WAVE_COMPS, TOTAL_WAVES, SPAWN_GAP_MIN, ENEMY_GROWTH, BOSS_WAVES, AFFIX_KEYS } from './config.js';
+import { CHAPTER_PACKS, TOTAL_WAVES, SPAWN_GAP_MIN, ENEMY_GROWTH, BOSS_WAVES, AFFIX_KEYS } from './config.js';
 import { rngNext } from './rng.js';
 import { spawnEnemy } from './enemy.js';
 
 // 波开始：构建该波刷怪队列 [{ at(波内秒), type, lane, mul, chMul, affix }]，按时间升序
 export function startWave(state) {
-  const comp = WAVE_COMPS[state.wave - 1];
+  const pack = CHAPTER_PACKS[state.packIdx || 0];
+  const comp = pack.waveComps[state.wave - 1];
   const mul = 1 + (state.wave - 1) * ENEMY_GROWTH;
   const chMul = state.chapterMul || 1; // 章节敌方 hp 系数（M3 局外注入，默认 ×1 零回归）
   const rate = state.chapterPackRate ?? 0; // 章节包精英词缀权重（M6 Task 4 注入，缺省 0）

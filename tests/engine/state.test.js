@@ -138,3 +138,16 @@ describe('M3 局外注入', () => {
     expect(e.speedMul).toBe(1);             // 速度不受章节系数影响
   });
 });
+
+describe('M6 章节包注入', () => {
+  it('createBattle 按章节号注入包与词缀权重', () => {
+    const s1 = createBattle(1, { chapterN: 1 });
+    expect(s1.packIdx).toBe(0);
+    expect(s1.chapterPackRate).toBe(0);
+    const s3 = createBattle(1, { chapterN: 3 });
+    expect(s3.packIdx).toBe(2);
+    expect(s3.chapterPackRate).toBeCloseTo(0.2, 5);
+    const s8 = createBattle(1, { chapterN: 8 });   // 8→packIndex 7%6=1
+    expect(s8.packIdx).toBe(1);
+  });
+});

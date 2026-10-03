@@ -59,7 +59,7 @@ export const SPAWN_GAP_MIN = 0.9;
 
 // 15 波组成表：每项 [type, count]，lane 由引擎按 i%3 轮转
 // 数值已验算：配合技能叠加与锦囊/大招，自动玩家 15 波可通关（见计划头部）
-export const WAVE_COMPS = [
+export const WAVE_COMPS_BASE = [
   [['bing', 8]],                               // w1 教学
   [['bing', 10]],                              // w2
   [['bing', 8], ['gong', 2]],                  // w3
@@ -76,6 +76,112 @@ export const WAVE_COMPS = [
   [['bing', 14], ['gong', 6], ['qi', 6]],      // w14（w14 skillPick 必稀有）
   [['bing', 12], ['qi', 6], ['shuai', 4]],     // w15 终 BOSS
 ];
+export const WAVE_COMPS = WAVE_COMPS_BASE; // 兼容别名（M6 起波次经 CHAPTER_PACKS 取）
+
+// ===== M6 章节包：6 套循环复用；7 章起回到包 1 并继续叠加 chapterMul =====
+export const CHAPTER_PACKS = [
+  { // 第1章 长坂坡：教学缓冲，无词缀（敌池含 BOSS 波 shuai）
+    name: '长坂坡', affixRate: 0,
+    enemies: ['bing', 'qi', 'gong', 'shuai'],
+    waveComps: WAVE_COMPS_BASE,
+  },
+  { // 第2章 乌林：+投石车，词缀 10%
+    name: '乌林', affixRate: 0.1,
+    enemies: ['bing', 'qi', 'gong', 'tou', 'shuai'],
+    waveComps: [
+      [['bing', 8]], [['bing', 10]], [['bing', 8], ['gong', 2]],
+      [['bing', 6], ['tou', 1], ['qi', 2]],
+      [['bing', 8], ['gong', 3], ['qi', 2]],
+      [['bing', 10], ['tou', 1], ['qi', 3]],
+      [['bing', 8], ['gong', 4], ['tou', 1], ['qi', 3]],
+      [['bing', 10], ['tou', 1], ['qi', 4]],
+      [['bing', 12], ['gong', 4], ['tou', 2], ['qi', 4]],
+      [['bing', 8], ['qi', 4], ['shuai', 2]],
+      [['bing', 12], ['tou', 1], ['qi', 5]],
+      [['bing', 10], ['gong', 6], ['tou', 1], ['qi', 5]],
+      [['bing', 14], ['tou', 2], ['qi', 6]],
+      [['bing', 12], ['gong', 6], ['tou', 2], ['qi', 6]],
+      [['bing', 10], ['qi', 6], ['shuai', 4]],
+    ],
+  },
+  { // 第3章 赤壁：+藤甲兵（灼烧×2），词缀 20%
+    name: '赤壁', affixRate: 0.2,
+    enemies: ['bing', 'qi', 'gong', 'teng', 'shuai'],
+    waveComps: [
+      [['bing', 8]], [['bing', 10]], [['bing', 6], ['teng', 2], ['gong', 2]],
+      [['bing', 8], ['qi', 2]],
+      [['bing', 8], ['teng', 2], ['gong', 3], ['qi', 2]],
+      [['bing', 10], ['qi', 3], ['teng', 1]],
+      [['bing', 8], ['gong', 4], ['qi', 3], ['teng', 2]],
+      [['bing', 10], ['qi', 4], ['teng', 2]],
+      [['bing', 12], ['gong', 4], ['qi', 4], ['teng', 2]],
+      [['bing', 8], ['qi', 4], ['shuai', 2]],
+      [['bing', 12], ['qi', 5], ['teng', 2]],
+      [['bing', 10], ['gong', 6], ['qi', 5], ['teng', 2]],
+      [['bing', 14], ['qi', 6], ['teng', 3]],
+      [['bing', 12], ['gong', 6], ['qi', 6], ['teng', 3]],
+      [['bing', 8], ['qi', 6], ['shuai', 4]],
+    ],
+  },
+  { // 第4章 华容道：全敌池，词缀 35%
+    name: '华容道', affixRate: 0.35,
+    enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
+    waveComps: [
+      [['bing', 8]], [['bing', 8], ['teng', 2]], [['bing', 6], ['gong', 2], ['tou', 1]],
+      [['bing', 6], ['qi', 2], ['teng', 2]],
+      [['bing', 8], ['gong', 3], ['qi', 2], ['tou', 1]],
+      [['bing', 10], ['qi', 3], ['teng', 2]],
+      [['bing', 8], ['gong', 4], ['qi', 3], ['tou', 2]],
+      [['bing', 8], ['qi', 4], ['teng', 3]],
+      [['bing', 10], ['gong', 4], ['qi', 4], ['tou', 2], ['teng', 2]],
+      [['bing', 8], ['qi', 4], ['shuai', 2]],
+      [['bing', 10], ['qi', 5], ['tou', 2], ['teng', 2]],
+      [['bing', 8], ['gong', 6], ['qi', 5], ['tou', 2], ['teng', 2]],
+      [['bing', 12], ['qi', 6], ['tou', 3], ['teng', 3]],
+      [['bing', 10], ['gong', 6], ['qi', 6], ['tou', 2], ['teng', 3]],
+      [['bing', 8], ['qi', 6], ['shuai', 4]],
+    ],
+  },
+  { // 第5章 荆州
+    name: '荆州', affixRate: 0.35,
+    enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
+    waveComps: [
+      [['bing', 8]], [['bing', 8], ['teng', 2]], [['bing', 6], ['gong', 3], ['tou', 1]],
+      [['bing', 6], ['qi', 3], ['teng', 2]],
+      [['bing', 8], ['gong', 3], ['qi', 2], ['tou', 1], ['teng', 1]],
+      [['bing', 8], ['qi', 4], ['teng', 2]],
+      [['bing', 8], ['gong', 4], ['qi', 3], ['tou', 2], ['teng', 1]],
+      [['bing', 8], ['qi', 4], ['tou', 2], ['teng', 2]],
+      [['bing', 10], ['gong', 4], ['qi', 4], ['tou', 2], ['teng', 3]],
+      [['bing', 6], ['qi', 4], ['shuai', 2]],
+      [['bing', 10], ['qi', 5], ['tou', 3], ['teng', 2]],
+      [['bing', 8], ['gong', 6], ['qi', 5], ['tou', 2], ['teng', 3]],
+      [['bing', 10], ['qi', 6], ['tou', 3], ['teng', 4]],
+      [['bing', 10], ['gong', 6], ['qi', 6], ['tou', 3], ['teng', 3]],
+      [['bing', 6], ['qi', 6], ['shuai', 4]],
+    ],
+  },
+  { // 第6章 成都
+    name: '成都', affixRate: 0.35,
+    enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
+    waveComps: [
+      [['bing', 8]], [['bing', 8], ['teng', 3]], [['bing', 6], ['gong', 3], ['tou', 1], ['teng', 1]],
+      [['bing', 6], ['qi', 3], ['teng', 2]],
+      [['bing', 8], ['gong', 3], ['qi', 2], ['tou', 2], ['teng', 1]],
+      [['bing', 8], ['qi', 4], ['tou', 1], ['teng', 2]],
+      [['bing', 8], ['gong', 4], ['qi', 3], ['tou', 2], ['teng', 2]],
+      [['bing', 6], ['qi', 4], ['tou', 3], ['teng', 2]],
+      [['bing', 8], ['gong', 4], ['qi', 4], ['tou', 3], ['teng', 3]],
+      [['bing', 6], ['qi', 4], ['shuai', 2]],
+      [['bing', 8], ['qi', 5], ['tou', 3], ['teng', 3]],
+      [['bing', 8], ['gong', 6], ['qi', 5], ['tou', 3], ['teng', 3]],
+      [['bing', 8], ['qi', 6], ['tou', 4], ['teng', 4]],
+      [['bing', 8], ['gong', 6], ['qi', 6], ['tou', 3], ['teng', 4]],
+      [['bing', 4], ['qi', 6], ['shuai', 4]],
+    ],
+  },
+];
+export function packIndex(chapterN) { return ((chapterN - 1) % CHAPTER_PACKS.length + CHAPTER_PACKS.length) % CHAPTER_PACKS.length; }
 
 // ===== M2 锦囊系统 =====
 export const SLOT_MAX = 8;            // 锦囊槽上限

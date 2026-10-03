@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   LOGICAL_W, LOGICAL_H, HERO_POS, HERO,
   ENEMY_TYPES, LANES, HP_MAX, TOTAL_WAVES, WAVE_COMPS,
+  CHAPTER_PACKS, packIndex,
   ENEMY_GROWTH, BOSS_WAVES, ITEM_TYPES, SLOT_MAX, ITEM_DROP_INTERVAL,
   MERGE_COUNT, ITEM_TIER2_MUL, ULT_JICE_COST, ULT_CAST_DUR,
   ROGUE_SKILLS, RARITY_NAMES, SPAWN_GAP_MIN,
@@ -91,5 +92,31 @@ describe('M2 关卡与系统数值', () => {
       expect(typeof s.desc).toBe('string');
     }
     expect(RARITY_NAMES).toEqual(['普通', '稀有', '史诗']);
+  });
+});
+
+describe('M6 章节包', () => {
+  it('6 套章节包结构与循环取模', () => {
+    expect(CHAPTER_PACKS).toHaveLength(6);
+    expect(packIndex(1)).toBe(0);
+    expect(packIndex(6)).toBe(5);
+    expect(packIndex(7)).toBe(0);          // 循环复用
+    expect(packIndex(13)).toBe(0);
+    for (const p of CHAPTER_PACKS) {
+      expect(p.waveComps).toHaveLength(15);
+      expect(p.affixRate).toBeGreaterThanOrEqual(0);
+      expect(p.affixRate).toBeLessThanOrEqual(0.35);
+    }
+    expect(CHAPTER_PACKS[0].affixRate).toBe(0);   // 第1章教学无词缀
+    expect(CHAPTER_PACKS[1].enemies).toContain('tou');
+    expect(CHAPTER_PACKS[2].enemies).toContain('teng');
+  });
+
+  it('每包 15 波敌型均在其敌池内', () => {
+    CHAPTER_PACKS.forEach((p) => {
+      for (const comp of p.waveComps) {
+        for (const [type] of comp) expect(p.enemies).toContain(type);
+      }
+    });
   });
 });
