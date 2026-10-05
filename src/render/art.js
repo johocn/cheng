@@ -70,7 +70,7 @@
 
   // ---------- 敌军单位（兵/骑/弓/帅） ----------
   // type: 'bing'|'qi'|'gong'|'shuai'; hpRatio: 0~1
-  var ENEMY_TEXT = { bing: '兵', qi: '骑', gong: '弓', shuai: '帅' };
+  var ENEMY_TEXT = { bing: '兵', qi: '骑', gong: '弓', shuai: '帅', tou: '投', teng: '藤' };
 
   // M6 精英词缀角标印文（key 与 engine/config.js AFFIX_KEYS 一致）
   var AFFIX_TEXT = { iron: '壁', swift: '行', sharp: '锋' };
