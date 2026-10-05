@@ -1,5 +1,6 @@
 // render/challenge.js — M7 征战屏：三模式竖卡（解锁阶梯 + 个人最佳）
 import { LOGICAL_W, LOGICAL_H } from '../engine/config.js';
+import { todayStr } from '../meta/save.js';
 import { KAI, C, panel, heroSeal, btn, topbar } from './ui.js';
 
 export const CHALLENGE_LAYOUT = {
@@ -21,16 +22,13 @@ const META = {
 function bestText(mode, save) {
   if (mode === 'endless') return save.progress.endlessBest ? `最佳战绩 ${save.progress.endlessBest} 波` : '暂无战绩';
   if (mode === 'bossrush') return save.progress.bossBest ? `最佳战绩 ${save.progress.bossBest} BOSS` : '暂无战绩';
-  return save.progress.dailyPaid === '' ? '今日奖励待领 ◆50' : '今日已完成';
+  return save.progress.dailyPaid === todayStr() ? '今日已完成' : '今日奖励待领 ◆50';
 }
 
 export function drawChallenge(ctx, save, unlocked) {
   ctx.fillStyle = C.paper;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   topbar(ctx, save, '征 战');
-  ctx.fillStyle = C.paper; ctx.font = `700 30px ${KAI}`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('征 战', LOGICAL_W / 2, 50);
   // 返回
   btn(ctx, CHALLENGE_LAYOUT.back.x, CHALLENGE_LAYOUT.back.y, CHALLENGE_LAYOUT.back.w, CHALLENGE_LAYOUT.back.h, '← 返', 'ghost', 26);
   CHALLENGE_LAYOUT.cards.forEach((card) => {
