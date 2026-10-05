@@ -24,6 +24,7 @@ import { todayStr } from '../meta/save.js';
 import { setSkin, currentSkin } from '../render/theme.js';
 import { loadHeroPortraits } from '../platform/img.js';
 import { touchQuests, reportQuest, questClaimable, questsOf, claimQuest, claimPass, passLevel, passExp, DAILY_QUESTS, WEEKLY_QUESTS } from '../meta/quests.js';
+import { ACHIEVEMENTS, achvProgress, achvClaimable, claimAchv, anyAchvClaimable } from '../meta/achievements.js';
 import { drawQuests, hitQuests } from '../render/quests.js';
 import { drawChallenge, hitChallenge } from '../render/challenge.js';
 import { modeUnlocked, dailyAffixOf, setBest } from '../meta/challenge.js';
@@ -44,10 +45,12 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   let gachaResult = null;     // 抽卡结果浮层（单条或数组，null=无浮层）
   let adBusy = false;         // 激励视频观看中，防重入
   let shopPick = null;        // 首充 SR 自选浮层
-  let questTab = 'daily';     // M6 军务面板当前页签（daily|weekly|pass）
+  let questTab = 'daily';     // M6 军务面板当前页签（daily|weekly|pass|achv）
   let reviveUsed = false;     // 本局复活次数（0/1）
   let toastMsg = '', toastUntil = 0;
   function showToast(msg) { toastMsg = msg; toastUntil = Date.now() + 2600; }
+  // M7 功勋累计统计：跨局累计不重置（save.stats）
+  function addStats(key, n) { save.stats[key] = (save.stats[key] || 0) + n; }
   // M6 广告埋点：任何激励视频成功回调计 ad_watch（任务进度）
   function rewarded(slot, cb) {
     showRewarded(slot, {
@@ -76,7 +79,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'result') return hitResult(x, y, resultData);
     if (screen === 'signin') return hitSignin(x, y, save);
     if (screen === 'shop') return hitShop(x, y, save, shopPick);
-    if (screen === 'quests') return hitQuests(x, y, questTab, questRows(), passData());
+    if (screen === 'quests') return hitQuests(x, y, questTab, questRows(), passData(), achvRows());
     if (screen === 'challenge') return hitChallenge(x, y, save);
     if (screen === 'revive') return hitRevive(x, y);
     return null;
@@ -107,7 +110,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   // ===== 军务面板视图数据（红点口径统一走 meta/quests.js anyClaimable，core 不另实现）=====
   function questRows() {
-    if (questTab === 'pass' || questTab === 'achv') return []; // 战令页无任务行；M7 功勋 tab 占位（Task 4 接管行内容），防 q.achv 误读崩溃
+    if (questTab === 'pass' || questTab === 'achv') return []; // 战令页无任务行；功勋页走 achvRows
     const q = questsOf(save);
     const table = questTab === 'daily' ? DAILY_QUESTS : WEEKLY_QUESTS;
     return table.map((d) => ({
@@ -116,6 +119,15 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       rewardText: d.reward.diamonds ? `◆${d.reward.diamonds}` : `🪙${d.reward.coins}`,
       claimable: questClaimable(save, questTab, d.id),
       claimed: q[questTab].claimed.includes(d.id),
+    }));
+  }
+  // M7 功勋行数据：进度由 save 派生（achvProgress），领奖状态存 save.achievements.claimed
+  function achvRows() {
+    return ACHIEVEMENTS.map((a) => ({
+      id: a.id, name: a.name, goal: a.goal,
+      cur: achvProgress(save, a), reward: a.reward.diamonds,
+      claimable: achvClaimable(save, a),
+      claimed: save.achievements.claimed.includes(a.id),
     }));
   }
   function passData() {
@@ -262,6 +274,13 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
           showToast('「令」轨需购战令 · 商城可购');
         }
       }
+      if (hit.action === 'achvClaim') {
+        const a = ACHIEVEMENTS.find((x) => x.id === hit.id);
+        if (a && claimAchv(save, a)) {
+          persistSave(save);
+          showToast(`功勋达成 · 钻石+${a.reward.diamonds}`);
+        }
+      }
     } else if (screen === 'revive') {
       if (hit.action === 'revive' && !adBusy) {
         adBusy = true;
@@ -295,6 +314,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
           gachaResult = pullOnce(rng, ownedIds);
           applyGacha(save, gachaResult); // 新英雄解锁★1 / 重复转碎片
           reportQuest(save, 'gacha', ten ? 10 : 1);
+          addStats('gachaCount', ten ? 10 : 1); // M7 功勋累计
           persistSave(save);
         },
         onFail() { adBusy = false; },
@@ -306,6 +326,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     gachaResult = ten ? pullTen(rng, ownedIds) : pullOnce(rng, ownedIds);
     applyGacha(save, gachaResult);
     reportQuest(save, 'gacha', ten ? 10 : 1);
+    addStats('gachaCount', ten ? 10 : 1); // M7 功勋累计
     persistSave(save);
   }
 
@@ -358,6 +379,9 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (st.ultCount) reportQuest(save, 'ult', st.ultCount);
     if (st.bossKills) reportQuest(save, 'boss_kill', st.bossKills);
     if (win) reportQuest(save, 'battle_win', 1);
+    // M7 功勋埋点：击杀/通关跨局累计（胜/负均计击杀）
+    addStats('kills', battleState.killCount || 0);
+    if (win) addStats('wins', 1);
     touchQuests(save); // 结算时跨日/跨周补偿刷新
     if (mode === 'endless') {
       // M7 无尽：死亡/漏怪时的波数即战绩；金币 = 波数 × 20
@@ -365,6 +389,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       setBest(save, 'endless', bestWave);
       const coins = bestWave * 20;
       save.wallet.coins += coins;
+      addStats('coinsEarned', coins); // M7 功勋累计
       resultData = {
         win, chapterN: battleState.chapterN, mode,
         modeTitle: `无尽模式 · ${bestWave} 波`,
@@ -374,7 +399,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     } else if (mode === 'daily') {
       // M7 每日挑战：当日首胜领 ◆50，之后当日重打无奖励（失败可无限重试）
       let diamonds = 0;
-      if (win && save.progress.dailyPaid !== todayStr()) { save.progress.dailyPaid = todayStr(); diamonds = 50; }
+      if (win && save.progress.dailyPaid !== todayStr()) { save.progress.dailyPaid = todayStr(); diamonds = 50; addStats('dailyWins', 1); } // M7 功勋：每日首胜累计
       save.wallet.diamonds += diamonds;
       resultData = {
         win, chapterN: battleState.chapterN, mode,
@@ -406,6 +431,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         applyRewardsWithProgress(resultData.rewards);
       } else {
         save.wallet.coins += resultData.rewards.coins; // 战败安慰金币（重复通关口径）
+        addStats('coinsEarned', resultData.rewards.coins); // M7 功勋累计
       }
     }
     persistSave(save);
@@ -414,6 +440,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   // 结算入账 + 首通推进进度（chapterClear 取最大；chapter 指向下一章）
   function applyRewardsWithProgress(r) {
+    addStats('coinsEarned', r.coins); // M7 功勋累计
     save.wallet.coins += r.coins;
     save.wallet.diamonds += r.diamonds;
     if (r.unlockHero) save.heroes[r.unlockHero].owned = true;
@@ -461,7 +488,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       }
       drawBattle(ctx, battleState);
     } else if (screen === 'home') {
-      drawHome(ctx, save, selectedHero);
+      drawHome(ctx, save, selectedHero, { achv: anyAchvClaimable(save) }); // M7 功勋红点（notices 红点 Task 6 接管）
     } else if (screen === 'detail') {
       drawDetail(ctx, save, selectedHero);
     } else if (screen === 'gacha') {
@@ -473,7 +500,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     } else if (screen === 'shop') {
       drawShop(ctx, save, shopPick);
     } else if (screen === 'quests') {
-      drawQuests(ctx, save, questTab, questRows(), passData());
+      drawQuests(ctx, save, questTab, questRows(), passData(), achvRows());
     } else if (screen === 'challenge') {
       drawChallenge(ctx, save, {
         daily: modeUnlocked(save, 'daily'),

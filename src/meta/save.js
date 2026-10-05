@@ -29,6 +29,8 @@ export function defaultSave() {
       weekly: { weekId: '', progress: {}, claimed: [] },
       pass: { seasonId: '', exp: 0, claimedFree: [], claimedPaid: [] },
     },
+    stats: { kills: 0, wins: 0, coinsEarned: 0, dailyWins: 0, gachaCount: 0 },
+    achievements: { claimed: [] },
     cosmetics: { skin: 'ink', shadowOwned: false },
   };
 }
@@ -78,6 +80,10 @@ export function loadSave() {
     parsed.progress.bossBest ??= 0;
     parsed.progress.dailyPaid ??= '';
     parsed.progress.bossPaid ??= '';
+    // M7 功勋：累计统计与已领集合
+    parsed.stats = { ...defaultSave().stats, ...(parsed.stats || {}) };
+    parsed.achievements = { claimed: [], ...(parsed.achievements || {}) };
+    parsed.achievements.claimed ??= [];
     return parsed;
   } catch {
     return defaultSave();

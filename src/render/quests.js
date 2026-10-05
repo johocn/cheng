@@ -6,7 +6,7 @@ import { KAI, C, panel, topbar, btn, roundRect } from './ui.js';
 
 export const QUESTS_LAYOUT = {
   backBtn: { x: 20, y: 110, w: 110, h: 64 },
-  tabs: { x0: 20, y: 190, w: 213, h: 64, gap: 10 },
+  tabs: { x0: 20, y: 190, w: 162, h: 64, gap: 10 },
   rows: { x: 20, y: 280, w: 680, h: 120, step: 132 },
   passBanner: { x: 20, y: 280, w: 680, h: 160 },
   track: { x: 20, y: 480, cardW: 120, cardH: 170, step: 130 },
@@ -17,12 +17,14 @@ const TABS = [
   { key: 'daily', label: '每日' },
   { key: 'weekly', label: '每周' },
   { key: 'pass', label: '战令' },
+  { key: 'achv', label: '功勋' },
 ];
 
-// 主入口：tab='daily'|'weekly'|'pass'
+// 主入口：tab='daily'|'weekly'|'pass'|'achv'
 // rows: 每日/每周 tab 传 [{id,name,goal,cur,rewardText,claimable,claimed}]
 // passData: 战令 tab 传 { level, exp, paid, levels:[{lv,freeClaimed,paidClaimed}] }
-export function drawQuests(ctx, save, tab, rows, passData) {
+// achvRows: 功勋 tab 传 [{id,name,goal,cur,reward,claimable,claimed}]
+export function drawQuests(ctx, save, tab, rows, passData, achvRows) {
   ctx.fillStyle = C.paper;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   topbar(ctx, save, '军 务');
@@ -34,7 +36,38 @@ export function drawQuests(ctx, save, tab, rows, passData) {
     btn(ctx, x, L.tabs.y, L.tabs.w, L.tabs.h, t.label, tab === t.key ? 'cinnabar' : 'ghost', 30);
   });
   if (tab === 'pass') drawPass(ctx, save, passData);
+  else if (tab === 'achv') drawAchv(ctx, save, achvRows);
   else drawRows(ctx, rows);
+}
+
+// M7 功勋：18 项四类，跨局累计不重置；每行 92px 视口截断（10 行，两页评估后续迭代）
+function drawAchv(ctx, save, rows) {
+  const L = QUESTS_LAYOUT;
+  ctx.fillStyle = C.ink; ctx.font = `700 30px ${KAI}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('功勋 · 累计成就', LOGICAL_W / 2, L.tabs.y + 120);
+  rows.forEach((r, i) => {
+    const y = 300 + i * 92;
+    if (y > 1180) return; // 视口截断（超过 10 行滚动不做，YAGNI：18 项分两页由后续迭代评估）
+    panel(ctx, 20, y, 680, 82);
+    ctx.fillStyle = C.ink; ctx.font = `700 26px ${KAI}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(r.name, 40, y + 26);
+    ctx.fillStyle = C.mut; ctx.font = `600 22px ${KAI}`;
+    ctx.fillText(`${Math.min(r.cur, r.goal)} / ${r.goal}`, 40, y + 58);
+    // 进度条（墨槽鎏金）
+    ctx.fillStyle = C.ink; ctx.fillRect(330, y + 52, 220, 12);
+    ctx.fillStyle = C.gold; ctx.fillRect(330, y + 52, 220 * Math.min(1, r.cur / r.goal), 12);
+    if (r.claimed) {
+      ctx.fillStyle = C.ok; ctx.font = `600 24px ${KAI}`;
+      ctx.fillText('已领', 640, y + 41);
+    } else if (r.claimable) {
+      btn(ctx, 590, y + 16, 90, 50, '领取', 'cinnabar', 24);
+    } else {
+      ctx.fillStyle = C.gray; ctx.font = `600 24px ${KAI}`;
+      ctx.fillText(`◆${r.reward}`, 640, y + 41);
+    }
+  });
 }
 
 function drawRows(ctx, rows) {
@@ -144,14 +177,26 @@ function drawPass(ctx, save, passData) {
   ctx.fillText('免费轨全员可领 · 「令」轨需商城购战令解锁', LOGICAL_W / 2, T.y + T.cardH + 40);
 }
 
-// 命中检测：{action:'back'|'tab'|'claim'|'passClaim'}
-export function hitQuests(x, y, tab, rows = [], passData = null) {
+// 命中检测：{action:'back'|'tab'|'claim'|'passClaim'|'achvClaim'}
+export function hitQuests(x, y, tab, rows = [], passData = null, achvRows = []) {
   const L = QUESTS_LAYOUT;
   const inB = (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   if (inB(L.backBtn)) return { action: 'back' };
   for (let i = 0; i < TABS.length; i++) {
     const tb = { x: L.tabs.x0 + i * (L.tabs.w + L.tabs.gap), y: L.tabs.y, w: L.tabs.w, h: L.tabs.h };
     if (inB(tb)) return { action: 'tab', tab: TABS[i].key };
+  }
+  if (tab === 'achv') {
+    for (let i = 0; i < achvRows.length; i++) {
+      const rowY = 300 + i * 92;
+      if (rowY > 1180) break;
+      const r = achvRows[i];
+      // 领取按钮盒：x 590–680，行 y+16 到 y+66（与 drawAchv btn 对齐）
+      if (r.claimable && x >= 590 && x <= 680 && y >= rowY + 16 && y <= rowY + 66) {
+        return { action: 'achvClaim', id: r.id };
+      }
+    }
+    return null;
   }
   if (tab === 'pass' && passData) {
     const T = L.track;
