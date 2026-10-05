@@ -305,15 +305,17 @@
   }
 
   // ---------- 战场背景（水墨远山 + 宣纸 + 雾带） ----------
-  function drawBattleBackdrop(ctx, x, y, w, h) {
+  // M8 场景层次：后层 op0.16 + 前层 op0.30（mockup v2 曲线），前层 8s 周期 ±10px 缓移（云雾感）
+  // tSec：时间秒（battle.js 传 state.frame/60；缺省 0 兼容旧调用）
+  function drawBattleBackdrop(ctx, x, y, w, h, tSec) {
+    tSec = tSec || 0;
     var g = ctx.createLinearGradient(x, y, x, y + h);
     g.addColorStop(0, '#efe5cd'); g.addColorStop(0.55, C.paper); g.addColorStop(1, C.paperDeep);
     ctx.fillStyle = g;
     ctx.fillRect(x, y, w, h);
-    // 三层远山
-    mountain(ctx, x + w * 0.18, y + h * 0.34, w * 0.5, h * 0.22, 'rgba(58,51,42,0.28)');
-    mountain(ctx, x + w * 0.82, y + h * 0.3, w * 0.6, h * 0.28, 'rgba(58,51,42,0.18)');
-    mountain(ctx, x + w * 0.5, y + h * 0.42, w * 0.42, h * 0.17, 'rgba(58,51,42,0.12)');
+    // 双层远山：后层淡远、前层浓近
+    mountain(ctx, x + w * 0.72, y + h * 0.30, w * 0.55, h * 0.26, 'rgba(58,51,42,0.16)');
+    mountain(ctx, x + w * 0.30 + Math.sin((tSec / 8) * Math.PI * 2) * 10, y + h * 0.36, w * 0.62, h * 0.24, 'rgba(58,51,42,0.30)');
     // 雾带
     var fog = ctx.createLinearGradient(x, y + h * 0.42, x, y + h * 0.62);
     fog.addColorStop(0, 'rgba(232,220,196,0)');

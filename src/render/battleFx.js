@@ -182,3 +182,30 @@ export function update(dtMs) {
     }
   }
 }
+
+// 活跃死亡幽灵列表（battle.js drawGhosts 消费）
+export function activeGhosts(now) {
+  const out = [];
+  for (const [, fx] of enemyFx) {
+    if (fx.dieAt !== undefined && now - fx.dieAt < 400 / speed) {
+      out.push({ ...fx.die, bornAt: fx.dieAt });
+    }
+  }
+  return out;
+}
+
+// 飘字绘制（楷体上浮 40px 淡出 500ms；暴击朱砂加粗）
+export function drawFloatsPublic(ctx, now) {
+  const C = (globalThis.Art && globalThis.Art.C) || { ink: '#1f1b16', seal: '#9e2a1e' };
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const f of floatList) {
+    const q = (renderClock - f.born) / (500 / speed);
+    if (q >= 1) continue;
+    ctx.globalAlpha = 1 - q;
+    ctx.fillStyle = f.crit ? C.seal : C.ink;
+    ctx.font = `${f.crit ? 'bold ' : ''}${f.size}px "KaiTi","STKaiti","楷体",serif`;
+    ctx.fillText(f.text, f.x, f.y - 40 * q);
+  }
+  ctx.globalAlpha = 1;
+}

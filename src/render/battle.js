@@ -1,4 +1,5 @@
 // render/battle.js — 战场渲染：只读 state，每帧重绘
+// M8：部件小人 + 打击感反馈（飘字/幽灵/屏震/红闪）+ 场景层次（双层远山/氛围墨点/路径质感）
 import {
   LOGICAL_W, LOGICAL_H, LANES, HERO_POS,
   TOTAL_WAVES, ITEM_TYPES, ROGUE_SKILLS, RARITY_NAMES, ULT_JICE_COST,
@@ -7,6 +8,10 @@ import { pathPoint } from '../engine/enemy.js';
 import { countJice, canUlt } from '../engine/ult.js';
 import { canMergeAt } from '../engine/slot.js';
 import { beginUltShake, drawUltCinematic } from './fx.js';
+import { pose, drawEnemyFigure, drawHeroSpear, figureHeight } from './animator.js';
+import * as battleFx from './battleFx.js';
+import * as particles from './particles.js';
+// 注：drawCinematic 的 import 与调用在 Task 8 接入（届时 cinematic.js 才导出该函数）
 
 const KAI = '"KaiTi","STKaiti","楷体",serif';
 // 元素色 / 稀有色（UI 定稿）
@@ -19,39 +24,149 @@ const ULT_CX = 600, ULT_CY = 985, ULT_R = 52;
 
 export function drawBattle(ctx, state) {
   const Art = globalThis.Art;
-  const shaken = state.ult ? beginUltShake(ctx, state) : false; // 大招尾段屏抖（save+translate）
+  const now = battleFx.nowClock(); // 与 core consume 同口径（渲染时钟），禁用 performance.now 混用
+  const shaken1 = state.ult ? beginUltShake(ctx, state) : false; // 大招尾段屏抖
+  const shaken2 = battleFx.beginShake(ctx);                      // 击杀/登场屏震
   if (Art.skinId === 'shadow') Art.drawShadowBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
-  else Art.drawBattleBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H);
+  else Art.drawBattleBackdrop(ctx, 0, 0, LOGICAL_W, LOGICAL_H, state.frame / 60); // M8 双层远山随引擎时钟缓移
   drawLanes(ctx);
-  for (const e of state.enemies) {
-    const p = pathPoint(e.lane, e.t);
-    Art.drawEnemyToken(ctx, p.x, p.y, 26, e.type, e.hp / e.hpMax, e.affix);
-    drawStatusMarks(ctx, p, e);
-  }
-  Art.drawHeroToken(ctx, HERO_POS.x, HERO_POS.y, 34, 1);
+  drawAmbient(ctx, state);
+  drawGhosts(ctx, now);
+  for (const e of state.enemies) drawEnemy(ctx, e, now);
+  drawHero(ctx, state, now);
   drawHud(ctx, state);
   drawWaveProgress(ctx, state);
   drawSlots(ctx, state);
-  if (!state.ult) drawUltButton(ctx, state); // 演出期间隐藏大招按钮
+  if (!state.ult) drawUltButton(ctx, state);
   drawStageBanner(ctx, state);
+  drawLeakFlash(ctx, now);
+  battleFx.drawFloatsPublic(ctx, now); // 飘字（battleFx 导出的绘制）
+  particles.draw(ctx);
   if (state.ult) drawUltCinematic(ctx, state);
-  if (shaken) ctx.restore();
+  if (shaken2) battleFx.endShake(ctx);
+  if (shaken1) ctx.restore();
   if (state.stage === 'skillPick' && state.pickChoices) drawSkillPick(ctx, state);
 }
 
+// ===== M8 新增：路径质感（晕染底 + 主虚线 + 路口墨点）=====
 function drawLanes(ctx) {
   const Art = globalThis.Art;
   ctx.save();
+  ctx.lineCap = 'round';
+  // 底层晕染 8px 低透明
+  ctx.strokeStyle = 'rgba(90,80,64,0.18)';
+  ctx.lineWidth = 8;
+  for (const lane of LANES) strokeLane(ctx, lane);
+  // 主线 3px 虚线
   ctx.strokeStyle = Art.C.laneInk;
   ctx.lineWidth = 3;
   ctx.setLineDash([14, 10]);
+  for (const lane of LANES) strokeLane(ctx, lane);
+  ctx.setLineDash([]);
+  // 路口墨点加重（拐点+终点）
+  ctx.fillStyle = 'rgba(31,27,22,0.5)';
   for (const lane of LANES) {
-    ctx.beginPath();
-    ctx.moveTo(lane[0].x, lane[0].y);
-    for (let i = 1; i < lane.length; i++) ctx.lineTo(lane[i].x, lane[i].y);
-    ctx.stroke();
+    for (const pt of lane.slice(1)) {
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
+}
+
+function strokeLane(ctx, lane) {
+  ctx.beginPath();
+  ctx.moveTo(lane[0].x, lane[0].y);
+  for (let i = 1; i < lane.length; i++) ctx.lineTo(lane[i].x, lane[i].y);
+  ctx.stroke();
+}
+
+// ===== M8 新增：氛围墨点（6 颗确定性缓浮，frame 驱动零状态）=====
+function drawAmbient(ctx, state) {
+  const Art = globalThis.Art;
+  const t = state.frame / 60;
+  const cols = [Art.C.ink, Art.C.ink, Art.C.seal, Art.C.ink, Art.C.seal, Art.C.ink];
+  for (let i = 0; i < 6; i++) {
+    const ph = t * (0.05 + i * 0.011) + i * 1.9;
+    const x = ((i * 137 + Math.sin(ph) * 40) % LOGICAL_W + LOGICAL_W) % LOGICAL_W;
+    const y = ((i * 331 + t * (6 + i)) % LOGICAL_H + LOGICAL_H) % LOGICAL_H;
+    ctx.globalAlpha = 0.1 + (i % 2) * 0.04;
+    ctx.fillStyle = cols[i];
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ===== M8 新增：死亡幽灵（die 态小人 + 墨散由粒子侧已发）=====
+function drawGhosts(ctx, now) {
+  const ghosts = battleFx.activeGhosts(now); // battleFx 导出的快照遍历
+  for (const g of ghosts) {
+    const age = Math.max(0, Math.min(0.4, (now - g.bornAt) / 1000));
+    const pz = pose(g.type, 'die', age);
+    drawEnemyFigure(ctx, g.x, g.y, g.type, pz);
+  }
+}
+
+// ===== M8 改造：敌人绘制（圆牌 → 部件小人）=====
+function drawEnemy(ctx, e, now) {
+  const Art = globalThis.Art;
+  const p = pathPoint(e.lane, e.t);
+  // 动画态判定：受击 flash → hit；投石车轰击（tou 且刚漏过）→ attack；否则 walk
+  let anim = 'walk';
+  if (battleFx.enemyHitFlash(e.id, now)) anim = 'hit';
+  const phase = now / 1000 + e.id * 0.7; // enemyId 错开步频
+  const pz = pose(e.type, anim, phase);
+  // 击退 offset：路径切线反向 × 6px × 回弹相位（视觉层 offset，engine pos 不改）
+  let kx = 0, ky = 0;
+  const kp = battleFx.enemyKnockPhase(e.id, now);
+  if (kp > 0) {
+    const a = pathPoint(e.lane, Math.max(0, e.t - 0.01));
+    const b = pathPoint(e.lane, e.t);
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    kx = (-dx / len) * 6 * kp;
+    ky = (-dy / len) * 6 * kp;
+  }
+  // 血条（朱砂，小人头顶）
+  drawHpBar(ctx, p.x + kx, p.y - figureHeight(e.type) - 12, e.hp / e.hpMax);
+  drawEnemyFigure(ctx, p.x + kx, p.y + pz.bob + ky, e.type, pz);
+  // 精英词缀印（沿用 Art.sealStamp）
+  if (e.affix) {
+    Art.sealStamp(ctx, p.x + kx + 22, p.y - figureHeight(e.type) + 6, 14, Art.AFFIX_TEXT[e.affix] || '精', 'gold', 8);
+  }
+  drawStatusMarks(ctx, p, e);
+}
+
+// M8 新增：敌人血条（原 drawEnemyToken 内置逻辑外置）
+function drawHpBar(ctx, x, y, ratio) {
+  if (ratio >= 1) return;
+  const bw = 40, bh = 4;
+  ctx.fillStyle = 'rgba(31,27,22,0.55)';
+  ctx.fillRect(x - bw / 2, y, bw, bh);
+  ctx.fillStyle = '#9e2a1e';
+  ctx.fillRect(x - bw / 2, y, bw * Math.max(0, Math.min(1, ratio)), bh);
+}
+
+// ===== M8 改造：赵云（双环底牌保留 + 攻击突刺长枪）=====
+function drawHero(ctx, state, now) {
+  const Art = globalThis.Art;
+  Art.drawHeroToken(ctx, HERO_POS.x, HERO_POS.y, 36, 1);
+  const atk = battleFx.heroAttackAnim(now);
+  if (atk.active) drawHeroSpear(ctx, HERO_POS.x, HERO_POS.y, atk.ang, atk.t);
+}
+
+// ===== M8 新增：漏怪城门红闪（200ms）=====
+function drawLeakFlash(ctx, now) {
+  if (!battleFx.leakFlash(now)) return;
+  const g = ctx.createRadialGradient(HERO_POS.x, HERO_POS.y, 40, HERO_POS.x, HERO_POS.y, 200);
+  g.addColorStop(0, 'rgba(158,42,30,0)');
+  g.addColorStop(0.7, 'rgba(158,42,30,0.28)');
+  g.addColorStop(1, 'rgba(158,42,30,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(HERO_POS.x - 200, HERO_POS.y - 200, 400, 400);
 }
 
 function drawHud(ctx, state) {

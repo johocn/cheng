@@ -3,8 +3,22 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   consume, update, reset, frozen, addShake, shakeActive, floats,
   ghostOf, enemyHitFlash, heroAttackAnim, setSpeed, tick, leakFlash,
+  activeGhosts, drawFloatsPublic,
 } from '../../src/render/battleFx.js';
 import { push, active as cineActive, reset as cineReset } from '../../src/render/cinematic.js';
+
+function makeCtx() {
+  const gradient = { addColorStop() {} };
+  return new Proxy({}, {
+    get(t, k) {
+      if (k === 'createRadialGradient' || k === 'createLinearGradient') return () => gradient;
+      if (k === 'measureText') return () => ({ width: 10 });
+      if (typeof k === 'string' && !(k in t)) return () => {}; // 方法兜底
+      return t[k];
+    },
+    set(t, k, v) { t[k] = v; return true; },
+  });
+}
 
 beforeEach(() => { reset(); cineReset(); });
 
@@ -128,5 +142,13 @@ describe('M8 battleFx 反馈状态', () => {
     expect(floats().length).toBe(1); // kill(dmg>0) 也有飘字
     for (let i = 0; i < 12; i++) update(50); // 600ms > 500ms 飘字寿命
     expect(floats().length).toBe(0);
+  });
+
+  it('activeGhosts 列出活跃幽灵；drawFloatsPublic mock ctx 不炸', () => {
+    const now = 1000;
+    consume([{ type: 'kill', x: 10, y: 20, dmg: 5, crit: false, enemyId: 9, enemyType: 'bing', cause: 'direct' }], { enemies: [] }, now);
+    expect(activeGhosts(now + 100)).toHaveLength(1);
+    expect(activeGhosts(now + 500)).toHaveLength(0);
+    expect(() => drawFloatsPublic(makeCtx(), now + 100)).not.toThrow();
   });
 });
