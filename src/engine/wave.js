@@ -76,7 +76,8 @@ export function updateWave(state, dtS) {
       if (state.wave % 5 === 0) state.coins += state.wave * 10; // 每 5 波额外金币
       state.stage = 'skillPick'; // 无尽永不 victory
     } else {
-      state.stage = state.wave >= TOTAL_WAVES ? 'victory' : 'skillPick';
+      state.stage = state.mode === 'bossrush' ? 'skillPick' // 车轮战无限轮，仅 hp≤0 结束
+        : state.wave >= TOTAL_WAVES ? 'victory' : 'skillPick';
     }
   }
 }

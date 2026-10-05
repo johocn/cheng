@@ -99,4 +99,11 @@ describe('M7 车轮战', () => {
     updateWave(st, 0.1);
     expect(st.stage).toBe('skillPick');
   });
+  it('bossrush 超过 15 轮清波仍进 skillPick，永不 victory', () => {
+    const st = createBattle(1, { mode: 'bossrush' });
+    st.wave = 16; st.spawnQueue = []; st.enemies = [];
+    st.stage = 'wave';
+    updateWave(st, 0.1);
+    expect(st.stage).toBe('skillPick'); // 否则 wave≥TOTAL_WAVES 会误判 victory
+  });
 });
