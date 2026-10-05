@@ -5,6 +5,15 @@ import { createApp } from '../../app/core.js';
 import { LOGICAL_W, LOGICAL_H } from '../../engine/config.js';
 import { showRewarded } from '../../platform/ads.js';
 import { purchase } from '../../platform/iap.js';
+import { initAudio, bgmStart } from '../../platform/audio.js';
+
+// M7 音频：WebAudio 工厂注入（无 WebAudio 环境时 initAudio 内部降级为全 no-op）
+initAudio(() => new (window.AudioContext || window.webkitAudioContext)());
+// 首次用户交互后启动 BGM（浏览器自动播放策略：AudioContext 需用户手势解锁）
+window.addEventListener('pointerdown', function once() {
+  bgmStart();
+  window.removeEventListener('pointerdown', once);
+}, { once: true });
 
 const canvas = document.getElementById('game');
 canvas.width = LOGICAL_W;

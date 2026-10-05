@@ -28,6 +28,19 @@ describe('meta/save 存档层', () => {
     expect(loadSave()).toEqual(defaultSave());
   });
 
+  it('M7 设置开关：默认 settings 全开；旧档迁移补齐且保留已有值', () => {
+    expect(defaultSave().settings).toEqual({ sound: true, bgm: true });
+    localStorage.setItem('qqc_save_v1', JSON.stringify({
+      v: 1,
+      wallet: { coins: 1, diamonds: 1 },
+      heroes: { zhaoyun: { owned: true } },
+      progress: { chapter: 1, chapterClear: 0, waveBest: 0 }, // pre-M7 旧档形态（无征战四键）
+      settings: { sound: false }, // 旧档只有部分键
+    }));
+    const s = loadSave();
+    expect(s.settings).toEqual({ sound: false, bgm: true });
+  });
+
   it('touchDaily：跨日重置免费抽计数', () => {
     const s = defaultSave();
     s.daily = { freePulls: 3, date: '2000-01-01' };

@@ -5,6 +5,11 @@ import { createApp } from '../../app/core.js';
 import { LOGICAL_W, LOGICAL_H } from '../../engine/config.js';
 import { showRewarded } from '../../platform/ads.js';
 import { purchase } from '../../platform/iap.js';
+import { initAudio, bgmStart } from '../../platform/audio.js';
+
+// M7 音频：wx.createWebAudioContext 基础库 ≥2.19 可用；缺失则 initAudio 降级全 no-op（静默零风险）
+initAudio(() => (typeof wx !== 'undefined' && wx.createWebAudioContext) ? wx.createWebAudioContext() : null);
+wx.onTouchStart && wx.onTouchStart(() => bgmStart()); // 首次触摸解锁音频；bgmStart 内部去重防叠加
 
 const canvas = wx.createCanvas(); // 主 canvas，内容自动拉伸铺满全屏
 canvas.width = LOGICAL_W;

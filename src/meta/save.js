@@ -32,6 +32,7 @@ export function defaultSave() {
     stats: { kills: 0, wins: 0, coinsEarned: 0, dailyWins: 0, gachaCount: 0 },
     achievements: { claimed: [] },
     cosmetics: { skin: 'ink', shadowOwned: false },
+    settings: { sound: true, bgm: true }, // M7 音频开关（主城「声音」格循环切换）
   };
 }
 
@@ -71,6 +72,8 @@ export function loadSave() {
     // M6 任务字段补齐（旧档迁移；touchQuests 负责日/周/赛季内容重置）
     parsed.quests = { ...defaultSave().quests, ...(parsed.quests || {}) };
     parsed.cosmetics = { skin: 'ink', shadowOwned: false, ...(parsed.cosmetics || {}) };
+    // M7 音频开关补齐（旧档无 settings；部分键保留用户已改值）
+    parsed.settings = { sound: true, bgm: true, ...(parsed.settings || {}) };
     // M7 扩池补齐：旧档可能缺周瑜/张辽键
     for (const id of ['zhangliao', 'zhouyu']) {
       parsed.heroes[id] ??= { owned: false, stars: 1, level: 1, frags: 0 };

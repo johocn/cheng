@@ -28,6 +28,7 @@ import { ACHIEVEMENTS, achvProgress, achvClaimable, claimAchv, anyAchvClaimable 
 import { drawQuests, hitQuests } from '../render/quests.js';
 import { drawChallenge, hitChallenge } from '../render/challenge.js';
 import { modeUnlocked, dailyAffixOf, setBest } from '../meta/challenge.js';
+import { sfx, setSoundMode, soundModeCycle, bgmStart } from '../platform/audio.js'; // M7 音频（platform 层全局单例，未初始化时全 no-op）
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
@@ -36,6 +37,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   touchQuests(save); // M6 任务日/周/赛季刷新（跨日 tick 内亦调用）
   setSkin(save.cosmetics.skin || 'ink');       // 启动恢复皮肤
   loadHeroPortraits(Object.keys(save.heroes)); // M6 立绘预热（失败静默回退圆牌）
+  setSoundMode(save);                          // M7 音频：恢复声音开关状态（含旧档 settings 迁移值）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
   let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests | challenge
@@ -65,7 +67,16 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   function handlePointer(x, y) {
     if (screen === 'battle') {
       // M2 战斗输入通道：命中结果写入局内状态，帧循环消费一次
-      if (battleState) battleState.pendingInputs = hitBattle(x, y, battleState);
+      if (battleState) {
+        battleState.pendingInputs = hitBattle(x, y, battleState);
+        // M7 战斗输入音效：选卡=技能三连 / 锦囊槽=木鱼合成 / 大招=战鼓（输入驱动一次一响，天然无同帧重复）
+        const pin = battleState.pendingInputs;
+        if (pin) {
+          if (pin.pickSkill !== undefined) sfx('skill');
+          else if (pin.clickSlot !== undefined) sfx('compose');
+          else if (pin.useUlt) sfx('ult');
+        }
+      }
       return;
     }
     dispatch(hitTest(x, y));
@@ -147,6 +158,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   // ===== 动作分发 =====
   function dispatch(hit) {
     if (!hit) return;
+    sfx('click'); // M7 通用点击音（battle 屏不走 dispatch，其输入音在 handlePointer）
     if (screen === 'home') {
       if (hit.action === 'hero') { selectedHero = hit.heroId; screen = 'detail'; }
       if (hit.action === 'gacha') { screen = 'gacha'; gachaResult = null; }
@@ -158,7 +170,15 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'achv') { screen = 'quests'; questTab = 'achv'; } // M7 功勋（Task 4 接管内容）
       if (hit.action === 'share') doShare();
       if (hit.action === 'notices') doNotices();
-      if (hit.action === 'sound') cycleSound(save);
+      if (hit.action === 'sound') {
+        // M7 三态循环：全开 → 仅音效 → 全关 → 全开；落档 + toast 反馈（spec 11.4）
+        save.settings = soundModeCycle(save.settings);
+        setSoundMode(save);
+        if (save.settings.bgm) bgmStart();
+        persistSave(save);
+        const m = save.settings;
+        showToast(m.sound && m.bgm ? '声音 · 全开' : m.sound ? '声音 · 仅音效' : '声音 · 全关');
+      }
       if (hit.action === 'skin' && !adBusy) {
         if (!save.cosmetics.shadowOwned) {
           adBusy = true;
@@ -215,6 +235,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
             const r = claimSignin(save, createRng((Date.now() & 0xffffffff) >>> 0));
             persistSave(save);
             if (r) {
+              sfx('coin'); // M7 领取成功音
               const parts = [];
               if (r.diamonds) parts.push(`钻石+${r.diamonds}`);
               if (r.stamina) parts.push(`体力+${r.stamina}`);
@@ -261,6 +282,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         const r = claimQuest(save, questTab, hit.taskId);
         if (r.ok) {
           persistSave(save);
+          sfx('coin'); // M7 领取成功音
           const p = r.reward;
           showToast(`领取成功 ${p.diamonds ? `钻石+${p.diamonds}` : `金币+${p.coins}`} · 军令经验+${questTab === 'daily' ? 20 : 60}`);
         }
@@ -269,6 +291,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         const r = claimPass(save, hit.track, hit.level);
         if (r.ok) {
           persistSave(save);
+          sfx('coin'); // M7 领取成功音
           showToast(`军令 Lv.${hit.level} ${hit.track === 'free' ? '免费' : '令'}轨 · 钻石+${r.reward.diamonds}`);
         } else if (r.reason === 'locked') {
           showToast('「令」轨需购战令 · 商城可购');
@@ -278,6 +301,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         const a = ACHIEVEMENTS.find((x) => x.id === hit.id);
         if (a && claimAchv(save, a)) {
           persistSave(save);
+          sfx('coin'); // M7 领取成功音
           showToast(`功勋达成 · 钻石+${a.reward.diamonds}`);
         }
       }
@@ -315,6 +339,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
           applyGacha(save, gachaResult); // 新英雄解锁★1 / 重复转碎片
           reportQuest(save, 'gacha', ten ? 10 : 1);
           addStats('gachaCount', ten ? 10 : 1); // M7 功勋累计
+          sfx('coin'); // M7 抽卡出结果音
           persistSave(save);
         },
         onFail() { adBusy = false; },
@@ -327,6 +352,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     applyGacha(save, gachaResult);
     reportQuest(save, 'gacha', ten ? 10 : 1);
     addStats('gachaCount', ten ? 10 : 1); // M7 功勋累计
+    sfx('coin'); // M7 抽卡出结果音
     persistSave(save);
   }
 
@@ -339,10 +365,9 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     return b;
   }
 
-  // M7 占位（Task 5/6 替换为真实现）：分享 / 公告 / 声音切换
+  // M7 占位（Task 6 替换为真实现）：分享 / 公告
   function doShare() { showToast('M7 分享功能即将上线'); }
   function doNotices() { showToast('M7 公告功能即将上线'); }
-  function cycleSound() {}
 
   function startBattle(chapterN, mode = 'chapter') {
     regenStamina(save);
@@ -367,11 +392,13 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     battleState.firstClear = chapterN > save.progress.chapterClear;
     battleState.pendingInputs = null;
     reviveUsed = false;
+    sfx('attack'); // M7 开战出手音
     screen = 'battle';
   }
 
   function finishBattle() {
     const win = battleState.stage === 'victory';
+    sfx(win ? 'win' : 'lose'); // M7 胜负音效（结算一次，engine 纯函数内不发声）
     const mode = battleState.mode || 'chapter';
     // M6 战斗埋点：局内计数整局上报（胜/负均计）
     const st = battleState.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
