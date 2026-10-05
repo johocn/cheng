@@ -32,6 +32,7 @@ import { modeUnlocked, dailyAffixOf, setBest } from '../meta/challenge.js';
 import { NOTICES, noticesUnread, markNoticesRead, SHARE_TEXTS, shareText } from '../meta/notices.js'; // M7 公告表 + 分享文案
 import { shareApp } from '../platform/share.js'; // M7 分享（wx 主动分享 / H5 剪贴板降级）
 import { sfx, setSoundMode, soundModeCycle, bgmStart } from '../platform/audio.js'; // M7 音频（platform 层全局单例，未初始化时全 no-op）
+import * as battleFx from '../render/battleFx.js'; // M8 打击感全家桶（吞帧时停/反馈）
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
@@ -65,6 +66,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   }
   let last = 0;
   const SPEED = Math.max(1, Math.min(10, getSpeed() || 1)); // 验收快进倍率 1-10，默认 1
+  battleFx.setSpeed(SPEED); // M8：快进缩放吞帧/演出时长
 
   // 输入入口：容器把平台事件换算成 720×1280 逻辑坐标后调用
   function handlePointer(x, y) {
@@ -404,6 +406,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     battleState.firstClear = chapterN > save.progress.chapterClear;
     battleState.pendingInputs = null;
     reviveUsed = false;
+    battleFx.reset(); // M8：每局视觉状态清零（时停/屏震/飘字/幽灵/演出/粒子）
     sfx('attack'); // M7 开战出手音
     screen = 'battle';
   }
@@ -516,11 +519,20 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     const dtMs = Math.min(now - last, 100); // 切后台回来防大步积压
     last = now;
     if (screen === 'battle') {
-      battleState = advanceFrame(battleState, battleState.pendingInputs, dtMs * SPEED);
-      battleState.pendingInputs = null; // 每帧消费一次
-      if (battleState.stage === 'victory' || battleState.stage === 'over') {
+      const now = battleFx.tick(0); // M8 取当前渲染时钟不推进（update 内统一推进，防双推进致时长减半）
+      const busy = battleFx.busy(now); // 吞帧中或演出中 → engine 冻结
+      if (!busy) {
+        battleState = advanceFrame(battleState, battleState.pendingInputs, dtMs * SPEED);
+        battleState.pendingInputs = null;
+        battleFx.consume(battleState.frameEvents || [], battleState, now); // 事件→时停/反馈/演出
+        battleState.frameEvents = []; // 用完即弃（终态冻结期防重复消费）
+        battleFx.ultTick(battleState); // 大招分镜节点（音效/溅墨/屏震）
+      }
+      battleFx.update(dtMs); // 演出/粒子/飘字推进（真实时钟，吞帧期间也走）
+      const terminal = battleState.stage === 'victory' || battleState.stage === 'over';
+      if (terminal && !battleFx.busy(battleFx.tick(0))) {
         if (battleState.stage === 'over' && !reviveUsed) {
-          screen = 'revive'; // 拦截结算 → 弹复活（engine 终态冻结，等待 app 层处置）
+          screen = 'revive'; // 拦截结算 → 弹复活（演出播完才处置）
         } else {
           finishBattle();
         }
