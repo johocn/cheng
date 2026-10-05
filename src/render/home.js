@@ -15,11 +15,13 @@ export const HOME_LAYOUT = {
   shopBtn: { x: 466, y: 540, w: 214, h: 90 },
   skinCard: { x: 30, y: 660, w: 660, h: 170 },
   skinBtn: { w: 200, h: 70 },
+  challengeCard: { x: 30, y: 830, w: 660, h: 130 },                 // M7 征战大卡
+  toolRow: { x: 20, y: 980, w: 680, h: 90, cell: 170 },             // M7 功能行四格
   btnY: 1140, btnH: 90,
   drawBtn: { x: 30, w: 180 }, outBtn: { x: 230, w: 260 }, codexBtn: { x: 510, w: 180 },
 };
 
-export function drawHome(ctx, save, selectedHero = 'zhaoyun') {
+export function drawHome(ctx, save, selectedHero = 'zhaoyun', redDots = {}) {
   ctx.fillStyle = C.paper;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   topbar(ctx, save, '主城');
@@ -71,6 +73,18 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun') {
 
   // 皮影皮肤卡
   drawSkinCard(ctx, save, L);
+
+  // M7 征战大卡（每日挑战可挑战/可领奖红点）
+  const cc = L.challengeCard;
+  panel(ctx, cc.x, cc.y, cc.w, cc.h);
+  heroSeal(ctx, cc.x + 80, cc.y + cc.h / 2, 46, '征', true, true);
+  ctx.fillStyle = C.ink; ctx.font = `700 40px ${KAI}`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('征 战', cc.x + 150, cc.y + 46);
+  ctx.fillStyle = C.mut; ctx.font = `600 26px ${KAI}`;
+  ctx.fillText('无尽 · 每日挑战 · 车轮战', cc.x + 150, cc.y + 94);
+  // M7 功能行四格：功勋/分享/公告/声音（红点由 core 传参 redDots）
+  drawToolRow(ctx, save, L.toolRow, redDots);
 
   // 底部三按钮
   const { btnY, btnH, drawBtn, outBtn, codexBtn } = HOME_LAYOUT;
@@ -127,6 +141,31 @@ function drawSkinCard(ctx, save, L) {
   }
 }
 
+// M7 功能行：功勋/分享/公告/声音（点击动作在 core 分发；红点 Task 4/5/6 接管）
+const TOOLS = [
+  { key: 'achv', char: '功', label: '功勋' },
+  { key: 'share', char: '享', label: '分享' },
+  { key: 'notices', char: '公', label: '公告' },
+  { key: 'sound', char: '声', label: '声音' },
+];
+
+function drawToolRow(ctx, save, row, redDots) {
+  TOOLS.forEach((t, i) => {
+    const x = row.x + i * row.cell;
+    panel(ctx, x, row.y, row.cell - 10, row.h);
+    heroSeal(ctx, x + 44, row.y + row.h / 2, 26, t.char, true, false);
+    ctx.fillStyle = C.ink; ctx.font = `600 26px ${KAI}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.label, x + 84, row.y + row.h / 2);
+    if (redDots[t.key]) {
+      ctx.fillStyle = C.cinnabar;
+      ctx.beginPath();
+      ctx.arc(x + row.cell - 34, row.y + 22, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
 // 命中检测 → { action, heroId? }
 export function hitHome(x, y) {
   const ids = Object.keys(HEROES);
@@ -141,6 +180,11 @@ export function hitHome(x, y) {
   if (inBtn(L.signinBtn)) return { action: 'signin' };
   if (inBtn(L.shopBtn)) return { action: 'shop' };
   if (inBtn(L.skinCard)) return { action: 'skin' };
+  if (inBtn(L.challengeCard)) return { action: 'challenge' };
+  if (y >= L.toolRow.y && y <= L.toolRow.y + L.toolRow.h) {
+    const i = Math.floor((x - L.toolRow.x) / L.toolRow.cell);
+    if (i >= 0 && i < 4) return { action: TOOLS[i].key };
+  }
   const { btnY, btnH, drawBtn, outBtn, codexBtn } = HOME_LAYOUT;
   if (y >= btnY && y <= btnY + btnH) {
     if (x >= drawBtn.x && x <= drawBtn.x + drawBtn.w) return { action: 'gacha' };

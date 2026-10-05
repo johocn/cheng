@@ -11,7 +11,7 @@ describe('meta/save 存档层', () => {
     expect(s.heroes.zhaoyun).toEqual({ owned: true, stars: 1, level: 1, frags: 0 });
     expect(s.heroes.guanyu.owned).toBe(false);
     expect(s.wallet).toEqual({ coins: 500, diamonds: 300, stamina: 60, staminaTs: 0 });
-    expect(s.progress).toEqual({ chapter: 1, chapterClear: 0, waveBest: 0 });
+    expect(s.progress).toEqual({ chapter: 1, chapterClear: 0, waveBest: 0, endlessBest: 0, bossBest: 0, dailyPaid: '', bossPaid: '' }); // M7 征战四键
     expect(s.daily.freePulls).toBe(0);
   });
 

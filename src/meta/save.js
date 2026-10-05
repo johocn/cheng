@@ -21,7 +21,7 @@ export function defaultSave() {
       zhangliao: { owned: false, stars: 1, level: 1, frags: 0 },
       zhouyu: { owned: false, stars: 1, level: 1, frags: 0 },
     },
-    progress: { chapter: 1, chapterClear: 0, waveBest: 0 },
+    progress: { chapter: 1, chapterClear: 0, waveBest: 0, endlessBest: 0, bossBest: 0, dailyPaid: '', bossPaid: '' },
     daily: { freePulls: 0, signinCount: 0, signinClaimedDate: null, date: todayStr() },
     iap: defaultIap(),
     quests: {
@@ -73,6 +73,11 @@ export function loadSave() {
     for (const id of ['zhangliao', 'zhouyu']) {
       parsed.heroes[id] ??= { owned: false, stars: 1, level: 1, frags: 0 };
     }
+    // M7 征战字段补齐
+    parsed.progress.endlessBest ??= 0;
+    parsed.progress.bossBest ??= 0;
+    parsed.progress.dailyPaid ??= '';
+    parsed.progress.bossPaid ??= '';
     return parsed;
   } catch {
     return defaultSave();

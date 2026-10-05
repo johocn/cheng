@@ -21,7 +21,12 @@ export function drawResult(ctx, save, data) {
   ctx.fillText(data.win ? '大获全胜' : '败 北', LOGICAL_W / 2, 45);
 
   ctx.fillStyle = C.ink; ctx.font = `700 34px ${KAI}`;
-  ctx.fillText(`第${data.chapterN}章 · 15 波 ${data.win ? '通关' : '止步'}`, LOGICAL_W / 2, 200);
+  ctx.fillText(data.modeText ? data.modeTitle || '' : `第${data.chapterN}章 · 15 波 ${data.win ? '通关' : '止步'}`, LOGICAL_W / 2, 200);
+  // M7 挑战模式副徽标（无尽/每日/车轮战战绩行）
+  if (data.modeText) {
+    ctx.fillStyle = C.cinnabar; ctx.font = `700 28px ${KAI}`;
+    ctx.fillText(data.modeText, LOGICAL_W / 2, 250);
+  }
 
   // 三奖励：金币 / 英雄或碎片 / 钻石
   const { rewardX0, rewardY, rewardW, rewardH } = RESULT_LAYOUT;

@@ -25,6 +25,8 @@ import { setSkin, currentSkin } from '../render/theme.js';
 import { loadHeroPortraits } from '../platform/img.js';
 import { touchQuests, reportQuest, questClaimable, questsOf, claimQuest, claimPass, passLevel, passExp, DAILY_QUESTS, WEEKLY_QUESTS } from '../meta/quests.js';
 import { drawQuests, hitQuests } from '../render/quests.js';
+import { drawChallenge, hitChallenge } from '../render/challenge.js';
+import { modeUnlocked, dailyAffixOf, setBest } from '../meta/challenge.js';
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
   // ===== 局外存档与屏幕状态 =====
@@ -35,7 +37,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   loadHeroPortraits(Object.keys(save.heroes)); // M6 立绘预热（失败静默回退圆牌）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
-  let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests
+  let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests | challenge
   let selectedHero = 'zhaoyun';
   let battleState = null;     // 战斗局内状态（engine state + chapterN/firstClear/pendingInputs）
   let resultData = null;      // 结算数据 { win, chapterN, rewards, doubled }
@@ -75,6 +77,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'signin') return hitSignin(x, y, save);
     if (screen === 'shop') return hitShop(x, y, save, shopPick);
     if (screen === 'quests') return hitQuests(x, y, questTab, questRows(), passData());
+    if (screen === 'challenge') return hitChallenge(x, y, save);
     if (screen === 'revive') return hitRevive(x, y);
     return null;
   }
@@ -104,7 +107,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   // ===== 军务面板视图数据（红点口径统一走 meta/quests.js anyClaimable，core 不另实现）=====
   function questRows() {
-    if (questTab === 'pass') return []; // 战令页无任务行（渲染循环无条件求值本函数，防 q.pass.progress 误读崩溃）
+    if (questTab === 'pass' || questTab === 'achv') return []; // 战令页无任务行；M7 功勋 tab 占位（Task 4 接管行内容），防 q.achv 误读崩溃
     const q = questsOf(save);
     const table = questTab === 'daily' ? DAILY_QUESTS : WEEKLY_QUESTS;
     return table.map((d) => ({
@@ -139,6 +142,11 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       if (hit.action === 'signin') screen = 'signin';
       if (hit.action === 'shop') { screen = 'shop'; shopPick = null; }
       if (hit.action === 'quests') { screen = 'quests'; questTab = 'daily'; } // 进面板默认页签
+      if (hit.action === 'challenge') { screen = 'challenge'; } // M7 征战入口
+      if (hit.action === 'achv') { screen = 'quests'; questTab = 'achv'; } // M7 功勋（Task 4 接管内容）
+      if (hit.action === 'share') doShare();
+      if (hit.action === 'notices') doNotices();
+      if (hit.action === 'sound') cycleSound(save);
       if (hit.action === 'skin' && !adBusy) {
         if (!save.cosmetics.shadowOwned) {
           adBusy = true;
@@ -183,7 +191,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
           onFail() { adBusy = false; },
         });
       }
-      if (hit.action === 'again') startBattle(resultData.chapterN);
+      if (hit.action === 'again') startBattle(resultData.chapterN, resultData.mode || 'chapter'); // M7 挑战重打同模式
       if (hit.action === 'next') startBattle(resultData.chapterN + 1);
     } else if (screen === 'signin') {
       if (hit.action === 'back') screen = 'home';
@@ -227,6 +235,12 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         shopPick = null;
         persistSave(save);
         if (r) showToast(r.dup ? `${HEROES[r.heroId].name}碎片 +${r.frags}` : `新武将 · ${HEROES[r.heroId].name}`);
+      }
+    } else if (screen === 'challenge') {
+      if (hit.action === 'back') screen = 'home';
+      if (hit.action === 'mode') {
+        if (modeUnlocked(save, hit.mode)) startBattle(save.progress.chapter, hit.mode);
+        else showToast('未解锁 · 先通关章节');
       }
     } else if (screen === 'quests') {
       if (hit.action === 'back') screen = 'home';
@@ -296,7 +310,20 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   }
 
   // ===== 战斗 =====
-  function startBattle(chapterN) {
+  // M7 助战被动：周瑜灼烧 +20%/★、张辽开局 −8%/★（engine 零 save 依赖，core 算好注入）
+  function battleBonus(save) {
+    const b = { burnBonus: 0, frontHpCut: 0 };
+    if (save.heroes.zhouyu?.owned) b.burnBonus = 0.2 * save.heroes.zhouyu.stars;
+    if (save.heroes.zhangliao?.owned) b.frontHpCut = 0.08 * save.heroes.zhangliao.stars;
+    return b;
+  }
+
+  // M7 占位（Task 5/6 替换为真实现）：分享 / 公告 / 声音切换
+  function doShare() { showToast('M7 分享功能即将上线'); }
+  function doNotices() { showToast('M7 公告功能即将上线'); }
+  function cycleSound() {}
+
+  function startBattle(chapterN, mode = 'chapter') {
     regenStamina(save);
     if (!spendStamina(save, BATTLE_COST)) {
       showToast(`体力不足（${save.wallet.stamina}/${STAMINA_MAX}）· 每 5 分钟恢复 1 点`);
@@ -304,10 +331,18 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     }
     reportQuest(save, 'stamina_spend', BATTLE_COST);
     persistSave(save);
-    // 首版战斗固定赵云上阵；注入局外攻击乘区与章节敌军 hp 系数
-    const bonus = { atkMul: atkMul(save, 'zhaoyun'), chapterMul: chapterMul(chapterN) };
-    battleState = createBattle(20260304 + chapterN, bonus);
+    // M7：模式化开战。daily 种子=YYYYMMDD、词缀=当日；chMul 挑战模式取当前章（engine 内再乘 endless/bossrush 递增）
+    const seed = mode === 'daily' ? Number(todayStr().replace(/-/g, '')) : 20260304 + chapterN;
+    const opts = {
+      atkMul: atkMul(save, 'zhaoyun'),
+      chapterMul: mode === 'chapter' ? chapterMul(chapterN) : chapterMul(save.progress.chapter),
+      mode,
+      dailyAffix: mode === 'daily' ? dailyAffixOf(todayStr()) : null,
+      bonus: battleBonus(save),
+    };
+    battleState = createBattle(seed, opts);
     battleState.chapterN = chapterN;   // 展示/结算用标注（engine 不读）
+    battleState.mode = mode;           // 冗余存一份供结算读取（engine 内部以 state.mode 为准）
     battleState.firstClear = chapterN > save.progress.chapterClear;
     battleState.pendingInputs = null;
     reviveUsed = false;
@@ -316,6 +351,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   function finishBattle() {
     const win = battleState.stage === 'victory';
+    const mode = battleState.mode || 'chapter';
     // M6 战斗埋点：局内计数整局上报（胜/负均计）
     const st = battleState.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
     if (st.mergeCount) reportQuest(save, 'merge', st.mergeCount);
@@ -323,16 +359,54 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (st.bossKills) reportQuest(save, 'boss_kill', st.bossKills);
     if (win) reportQuest(save, 'battle_win', 1);
     touchQuests(save); // 结算时跨日/跨周补偿刷新
-    resultData = {
-      win,
-      chapterN: battleState.chapterN,
-      rewards: resultRewards(battleState.chapterN, win && battleState.firstClear, save),
-      doubled: false,
-    };
-    if (win) {
-      applyRewardsWithProgress(resultData.rewards);
+    if (mode === 'endless') {
+      // M7 无尽：死亡/漏怪时的波数即战绩；金币 = 波数 × 20
+      const bestWave = battleState.wave;
+      setBest(save, 'endless', bestWave);
+      const coins = bestWave * 20;
+      save.wallet.coins += coins;
+      resultData = {
+        win, chapterN: battleState.chapterN, mode,
+        modeTitle: `无尽模式 · ${bestWave} 波`,
+        modeText: `最佳 ${Math.max(save.progress.endlessBest, bestWave)} 波 · 金币 +${coins}`,
+        rewards: { coins, diamonds: 0, frags: {} }, doubled: false,
+      };
+    } else if (mode === 'daily') {
+      // M7 每日挑战：当日首胜领 ◆50，之后当日重打无奖励（失败可无限重试）
+      let diamonds = 0;
+      if (win && save.progress.dailyPaid !== todayStr()) { save.progress.dailyPaid = todayStr(); diamonds = 50; }
+      save.wallet.diamonds += diamonds;
+      resultData = {
+        win, chapterN: battleState.chapterN, mode,
+        modeTitle: `每日挑战 · ${win ? '通关' : '未通关'}`,
+        modeText: diamonds ? `首通奖励 ◆${diamonds}` : (win ? '今日奖励已领' : '失败可无限重试'),
+        rewards: { coins: 0, diamonds, frags: {} }, doubled: false,
+      };
+    } else if (mode === 'bossrush') {
+      // M7 车轮战：击败数计分；当日按击败数发钻石（上限 50）
+      const kills = st.bossKills || 0;
+      setBest(save, 'bossrush', kills);
+      let diamonds = 0;
+      if (save.progress.bossPaid !== todayStr()) { save.progress.bossPaid = todayStr(); diamonds = Math.min(50, 5 * kills); }
+      save.wallet.diamonds += diamonds;
+      resultData = {
+        win, chapterN: battleState.chapterN, mode,
+        modeTitle: `车轮战 · 击败 ${kills} BOSS`,
+        modeText: `最佳 ${save.progress.bossBest} BOSS` + (diamonds ? ` · 钻石 +${diamonds}` : ' · 今日奖励已领'),
+        rewards: { coins: 0, diamonds, frags: {} }, doubled: false,
+      };
     } else {
-      save.wallet.coins += resultData.rewards.coins; // 战败安慰金币（重复通关口径）
+      resultData = {
+        win,
+        chapterN: battleState.chapterN,
+        rewards: resultRewards(battleState.chapterN, win && battleState.firstClear, save),
+        doubled: false,
+      };
+      if (win) {
+        applyRewardsWithProgress(resultData.rewards);
+      } else {
+        save.wallet.coins += resultData.rewards.coins; // 战败安慰金币（重复通关口径）
+      }
     }
     persistSave(save);
     screen = 'result'; // 战败也进结算屏（drawResult/hitResult 已按 win=false 处理）
@@ -400,6 +474,12 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       drawShop(ctx, save, shopPick);
     } else if (screen === 'quests') {
       drawQuests(ctx, save, questTab, questRows(), passData());
+    } else if (screen === 'challenge') {
+      drawChallenge(ctx, save, {
+        daily: modeUnlocked(save, 'daily'),
+        endless: modeUnlocked(save, 'endless'),
+        bossrush: modeUnlocked(save, 'bossrush'),
+      });
     } else if (screen === 'revive') {
       drawBattle(ctx, battleState);
       drawRevive(ctx, battleState.wave);
