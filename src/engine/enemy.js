@@ -54,6 +54,12 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = nul
     slowT: 0, stunT: 0, burnT: 0,
     burnMul: 1 + (state.burnBonus || 0), // M7 周瑜被动：灼烧增伤乘区（enemy.js 灼烧结算已乘 burnMul）
   });
+  if (type === 'shuai') { // M8：Boss 登场事件（卷轴/屏震触发）
+    (state.frameEvents = state.frameEvents || []).push({
+      type: 'boss', x: LANES[laneIdx][0].x, y: LANES[laneIdx][0].y,
+      dmg: 0, crit: false, enemyType: 'shuai', isBoss: true,
+    });
+  }
 }
 
 // 推进所有敌人（含 stun 冻结 / slow 减速 / burn 灼烧）；
@@ -98,6 +104,13 @@ export function reapDead(state) {
     if (e.hp <= 0) {
       state.coins += ENEMY_TYPES[e.type].reward;
       state.killCount = (state.killCount || 0) + 1;
+      const p = pathPoint(e.lane, e.t);
+      (state.frameEvents = state.frameEvents || []).push({
+        type: 'kill', x: p.x, y: p.y, dmg: 0, crit: false,
+        enemyId: e.id, enemyType: e.type, isBoss: e.type === 'shuai',
+        cause: e.burnT > 0 ? 'burn' : 'direct', // 灼烧中死亡=烧死（DOT/灼烧锦囊），其余直伤（大招/锦囊斩击）
+        affix: e.affix || null,
+      });
       if (e.type === 'shuai') {
         state.stats = state.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
         state.stats.bossKills++;

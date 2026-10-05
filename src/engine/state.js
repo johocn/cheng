@@ -33,6 +33,7 @@ export function createBattle(seed = 20260304, opts = {}) {
     ult: null,
     leechCount: 0,     // 饮血已结算次数（killCount/10 的增量差）
     stats: { mergeCount: 0, ultCount: 0, bossKills: 0 }, // M6 任务埋点（战斗结束由 core 上报）
+    frameEvents: [],   // M8 只读事件流（每帧重置，渲染层消费后即弃）
   };
   // M3 局外注入：英雄攻击乘区 / 章节敌方 hp 系数（缺省 ×1 = 与 M2 完全一致）
   state.metaAtkMul = opts.atkMul || 1;
@@ -67,6 +68,7 @@ export function advanceFrame(state, inputs, dtMs) {
 
   const work = structuredClone(state);
   work.frame++;
+  work.frameEvents = []; // M8：上一帧事件不残留（只读事件流）
   let remain = Math.max(0, dtMs);
 
   while (remain > 0) {
@@ -107,7 +109,13 @@ export function advanceFrame(state, inputs, dtMs) {
         if (work.stage !== 'wave') break; // 本 tick 已切 skillPick/victory
         const leaked = moveEnemies(work, dt); // 移动含 stun/slow/burn
         if (work.shieldT <= 0) {          // 玄武护盾免伤（enemy.js 不感知 shield）
-          for (const l of leaked) work.hp -= l.dmg;
+          for (const l of leaked) {
+            work.hp -= l.dmg;
+            (work.frameEvents = work.frameEvents || []).push({ // M8：漏怪事件（免伤不发）
+              type: 'leak', x: HERO_POS.x, y: HERO_POS.y, dmg: l.dmg,
+              crit: false, enemyType: l.type, isBoss: l.type === 'shuai',
+            });
+          }
         }
         tickSlots(work, dt * work.heroStat.dropMul);
         heroAttack(work, dt);

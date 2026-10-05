@@ -34,7 +34,7 @@ export function heroAttack(state, dtSec) {
   const isCrit = st.crit > 0 && state.rng ? rngNext(state.rng) < st.crit : false;
   const dmg = st.atk * dmgMul * (isCrit ? 2 : 1);
   for (const e of targets) {
-    dealDamage(state, e.id, dmg);
+    dealDamage(state, e.id, dmg, { crit: isCrit });
     if (st.slowOnHit) {
       const cur = state.enemies.find((x) => x.id === e.id);
       if (cur) cur.slowT = Math.max(cur.slowT || 0, 2);

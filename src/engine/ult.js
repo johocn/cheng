@@ -1,6 +1,7 @@
 // engine/ult.js — 大招「七进七出」：2 计策施放，2.8s 演出（时间冻结），结束一次结算
 import {
   ULT_JICE_COST, ULT_CAST_DUR, ULT_DAMAGE, ULT_KNOCKBACK, ULT_STUN,
+  HERO_POS,
 } from './config.js';
 
 export function countJice(state) {
@@ -23,6 +24,9 @@ export function tryStartUlt(state) {
   state.stats = state.stats || { mergeCount: 0, ultCount: 0, bossKills: 0 };
   state.stats.ultCount++;
   state.ult = { t: 0 };
+  (state.frameEvents = state.frameEvents || []).push({ // M8：大招起手事件（战鼓/分镜对齐）
+    type: 'ult', x: HERO_POS.x, y: HERO_POS.y, dmg: ULT_DAMAGE, crit: false, enemyType: null,
+  });
   return true;
 }
 
