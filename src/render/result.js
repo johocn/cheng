@@ -48,7 +48,11 @@ export function drawResult(ctx, save, data) {
     btn(ctx, adBtn.x, adBtn.y, adBtn.w, adBtn.h, '📺 观看广告 · 奖励翻倍', 'ghost', 28);
   } else if (data.doubled) {
     ctx.fillStyle = C.ok; ctx.font = `600 26px ${KAI}`;
-    ctx.fillText('已翻倍领取', LOGICAL_W / 2, adBtn.y + adBtn.h / 2);
+    ctx.fillText('已翻倍领取', LOGICAL_W / 2, adBtn.y + adBtn.h + 32); // M7 分享按钮占用广告位，状态文字下移避让
+  }
+  // M7 分享战绩入口：广告可点时让位广告（激励优先），败局/已翻倍态显示（spec 11.5 分享点）
+  if (!(data.win && !data.doubled)) {
+    btn(ctx, adBtn.x, adBtn.y, adBtn.w, adBtn.h, '📣 分享战绩', 'ghost', 28);
   }
 
   // 解锁英雄展示
@@ -63,10 +67,11 @@ export function drawResult(ctx, save, data) {
   if (data.win) btn(ctx, nextBtn.x, nextBtn.y, nextBtn.w, nextBtn.h, '下一章', 'gold', 36);
 }
 
-// 命中检测：翻倍 / 重打 / 下一章（胜负与已翻倍态参与判定）
+// 命中检测：翻倍 / 分享 / 重打 / 下一章（胜负与已翻倍态参与判定）
 export function hitResult(x, y, data) {
   const { adBtn, againBtn, nextBtn } = RESULT_LAYOUT;
   const inBtn = (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  if (!(data.win && !data.doubled) && inBtn(adBtn)) return { action: 'share' }; // M7 分享（与广告位同区，互斥让位）
   if (data.win && !data.doubled && inBtn(adBtn)) return { action: 'double' };
   if (inBtn(againBtn)) return { action: 'again' };
   if (data.win && inBtn(nextBtn)) return { action: 'next' };

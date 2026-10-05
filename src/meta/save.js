@@ -31,6 +31,7 @@ export function defaultSave() {
     },
     stats: { kills: 0, wins: 0, coinsEarned: 0, dailyWins: 0, gachaCount: 0 },
     achievements: { claimed: [] },
+    noticesRead: '', // M7 公告已读戳（存最新公告 id，落后即为未读红点）
     cosmetics: { skin: 'ink', shadowOwned: false },
     settings: { sound: true, bgm: true }, // M7 音频开关（主城「声音」格循环切换）
   };
@@ -87,6 +88,8 @@ export function loadSave() {
     parsed.stats = { ...defaultSave().stats, ...(parsed.stats || {}) };
     parsed.achievements = { claimed: [], ...(parsed.achievements || {}) };
     parsed.achievements.claimed ??= [];
+    // M7 公告已读戳补齐
+    parsed.noticesRead ??= '';
     return parsed;
   } catch {
     return defaultSave();

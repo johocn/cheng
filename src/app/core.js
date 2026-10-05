@@ -27,7 +27,10 @@ import { touchQuests, reportQuest, questClaimable, questsOf, claimQuest, claimPa
 import { ACHIEVEMENTS, achvProgress, achvClaimable, claimAchv, anyAchvClaimable } from '../meta/achievements.js';
 import { drawQuests, hitQuests } from '../render/quests.js';
 import { drawChallenge, hitChallenge } from '../render/challenge.js';
+import { drawNotices, hitNotices } from '../render/notices.js'; // M7 公告屏
 import { modeUnlocked, dailyAffixOf, setBest } from '../meta/challenge.js';
+import { NOTICES, noticesUnread, markNoticesRead, SHARE_TEXTS, shareText } from '../meta/notices.js'; // M7 公告表 + 分享文案
+import { shareApp } from '../platform/share.js'; // M7 分享（wx 主动分享 / H5 剪贴板降级）
 import { sfx, setSoundMode, soundModeCycle, bgmStart } from '../platform/audio.js'; // M7 音频（platform 层全局单例，未初始化时全 no-op）
 
 export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = () => 1 }) {
@@ -40,7 +43,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
   setSoundMode(save);                          // M7 音频：恢复声音开关状态（含旧档 settings 迁移值）
   if (grantMonthlyDaily(save) > 0) persistSave(save); // 月卡跨日首发
 
-  let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests | challenge
+  let screen = 'home';        // home | detail | gacha | battle | result | signin | shop | revive | quests | challenge | notices
   let selectedHero = 'zhaoyun';
   let battleState = null;     // 战斗局内状态（engine state + chapterN/firstClear/pendingInputs）
   let resultData = null;      // 结算数据 { win, chapterN, rewards, doubled }
@@ -92,6 +95,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     if (screen === 'shop') return hitShop(x, y, save, shopPick);
     if (screen === 'quests') return hitQuests(x, y, questTab, questRows(), passData(), achvRows());
     if (screen === 'challenge') return hitChallenge(x, y, save);
+    if (screen === 'notices') return hitNotices(x, y);
     if (screen === 'revive') return hitRevive(x, y);
     return null;
   }
@@ -225,6 +229,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       }
       if (hit.action === 'again') startBattle(resultData.chapterN, resultData.mode || 'chapter'); // M7 挑战重打同模式
       if (hit.action === 'next') startBattle(resultData.chapterN + 1);
+      if (hit.action === 'share') doShare(); // M7 结算页分享入口（广告可点时让位，激励优先）
     } else if (screen === 'signin') {
       if (hit.action === 'back') screen = 'home';
       if (hit.action === 'claim' && !adBusy) {
@@ -275,6 +280,8 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         if (modeUnlocked(save, hit.mode)) startBattle(save.progress.chapter, hit.mode);
         else showToast('未解锁 · 先通关章节');
       }
+    } else if (screen === 'notices') {
+      if (hit.action === 'back') screen = 'home';
     } else if (screen === 'quests') {
       if (hit.action === 'back') screen = 'home';
       if (hit.action === 'tab') questTab = hit.tab;
@@ -365,9 +372,14 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     return b;
   }
 
-  // M7 占位（Task 6 替换为真实现）：分享 / 公告
-  function doShare() { showToast('M7 分享功能即将上线'); }
-  function doNotices() { showToast('M7 公告功能即将上线'); }
+  // ===== M7 分享 + 公告（Task 6，替换 T3 占位）=====
+  let shareIdx = 0;
+  async function doShare() {
+    shareIdx = (shareIdx + 1) % SHARE_TEXTS.length; // 三文案轮换（spec 11.5）
+    const r = await shareApp({ title: shareText(save, shareIdx), query: 'from=home' });
+    showToast(r === 'shared' ? '已发起分享' : r === 'copied' ? '分享文案已复制' : '分享失败');
+  }
+  function doNotices() { screen = 'notices'; }
 
   function startBattle(chapterN, mode = 'chapter') {
     regenStamina(save);
@@ -515,7 +527,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
       }
       drawBattle(ctx, battleState);
     } else if (screen === 'home') {
-      drawHome(ctx, save, selectedHero, { achv: anyAchvClaimable(save) }); // M7 功勋红点（notices 红点 Task 6 接管）
+      drawHome(ctx, save, selectedHero, { achv: anyAchvClaimable(save), notices: noticesUnread(save) }); // M7 功勋/公告红点
     } else if (screen === 'detail') {
       drawDetail(ctx, save, selectedHero);
     } else if (screen === 'gacha') {
@@ -534,6 +546,9 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         endless: modeUnlocked(save, 'endless'),
         bossrush: modeUnlocked(save, 'bossrush'),
       });
+    } else if (screen === 'notices') {
+      drawNotices(ctx, save, NOTICES);
+      if (noticesUnread(save)) { markNoticesRead(save); persistSave(save); } // 进入即已读（主城红点消退）
     } else if (screen === 'revive') {
       drawBattle(ctx, battleState);
       drawRevive(ctx, battleState.wave);
