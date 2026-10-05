@@ -295,7 +295,8 @@ describe('M7 无尽模式', () => {
     st.wave = 16; startWave(st);
     // w1 基表 8 兵 → 第 2 轮次 lap=1 → count ×1.3 = 10.4 → 11
     expect(st.spawnQueue.length).toBe(11);
-    expect(st.spawnQueue[0].hpMul).toBeCloseTo(Math.pow(1.08, 1));
+    // T1 已定口径：chMul 承载全部 hp 系数（chapterMul × endless 1.08^over）；hpMul 专供张辽减益
+    expect(st.spawnQueue[0].chMul).toBeCloseTo(Math.pow(1.08, 1));
     st.spawnQueue = [];
     updateWave(st, 0.1); // 清空 → skillPick 而非 victory
     expect(st.stage).toBe('skillPick');
@@ -409,13 +410,15 @@ export function setBest(save, mode, v) {
 
 ```js
 // 波开始：chapter/daily/endless 走组成表，bossrush 走专用编排
+// 口径（T1 已定）：chMul 承载全部 hp 系数（chapterMul × endless 1.08^over × bossrush 递增）；
+//                 hpMul 专供张辽开局减益事件因子（updateWave 折算 spawnEnemy 形参）
 export function startWave(state) {
   if (state.mode === 'bossrush') return startBossRushWave(state);
   const pack = CHAPTER_PACKS[state.packIdx || 0];
   // M7 无尽：组成表按 (wave-1)%len 轮换（chapter 波次 ≤len 行为不变）
   const comp = pack.waveComps[(state.wave - 1) % pack.waveComps.length];
-  let mul = 1 + (state.wave - 1) * ENEMY_GROWTH;
-  if (state.wave <= 3 && state.frontHpCut) mul *= (1 - state.frontHpCut); // 张辽被动
+  const mul = 1 + (state.wave - 1) * ENEMY_GROWTH;
+  const hpMul = state.wave <= 3 && state.frontHpCut ? 1 - state.frontHpCut : 1; // 张辽：开局压制（前 3 波）
   // M7 无尽难度：15 波后 hp ×1.08^(wave-15) 指数递增
   const endlessOver = state.mode === 'endless' && state.wave > TOTAL_WAVES ? state.wave - TOTAL_WAVES : 0;
   const chMul = (state.chapterMul || 1) * (endlessOver ? Math.pow(1.08, endlessOver) : 1);
@@ -434,7 +437,7 @@ export function startWave(state) {
         : (bossWave || rngNext(state.rng) < rate)
           ? AFFIX_KEYS[Math.floor(rngNext(state.rng) * AFFIX_KEYS.length)]
           : null;
-      events.push({ at, type, lane, mul, chMul, affix });
+      events.push({ at, type, lane, mul, chMul, hpMul, affix });
       at += gap;
       lane = (lane + 1) % 3;
     }
@@ -455,7 +458,7 @@ function startBossRushWave(state) {
   let lane = 0;
   for (let i = 0; i < 2; i++) {
     const affix = AFFIX_KEYS[Math.floor(rngNext(state.rng) * AFFIX_KEYS.length)];
-    events.push({ at, type: 'shuai', lane, mul: 1, chMul, affix });
+    events.push({ at, type: 'shuai', lane, mul: 1, chMul, hpMul: 1, affix });
     at += 1.2;
     lane = (lane + 1) % 3;
   }
