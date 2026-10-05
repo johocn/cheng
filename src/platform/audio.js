@@ -54,10 +54,18 @@ const SFX = {
   compose: () => { tone(523, 0.07, 'triangle', 0.8); tone(523, 0.07, 'triangle', 0.8, 0.1); },
   win:     () => [523, 587, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, 'sine', 0.6, i * 0.1)), // 五声上行
   lose:    () => { tone(330, 0.3, 'sine', 0.7, 0, 220); tone(220, 0.4, 'sine', 0.7, 0.25, 147); },
+  hit:     () => tone(320, 0.05, 'triangle', 0.5, 0, 160), // M8 命中短噗
+  kill:    () => { tone(180, 0.12, 'sine', 0.8, 0, 60); tone(90, 0.16, 'square', 0.3, 0.02, 45); }, // M8 击杀低沉
+  drum:    () => { tone(60, 0.4, 'sine', 1.0, 0, 38); tone(120, 0.2, 'triangle', 0.5, 0.04, 80); }, // M8 大招战鼓
 };
+
+const lastPlay = {};
 
 export function sfx(name) {
   if (!ac || !soundOn || !SFX[name]) return;
+  const now = Date.now(); // wx 无 performance.now，统一 Date.now
+  if (lastPlay[name] && now - lastPlay[name] < 60) return; // M8 限频防噪（60ms 同名冷却）
+  lastPlay[name] = now;
   SFX[name]();
 }
 

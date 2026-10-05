@@ -81,12 +81,12 @@ export const WAVE_COMPS = WAVE_COMPS_BASE; // 兼容别名（M6 起波次经 CHA
 // ===== M6 章节包：6 套循环复用；7 章起回到包 1 并继续叠加 chapterMul =====
 export const CHAPTER_PACKS = [
   { // 第1章 长坂坡：教学缓冲，无词缀（敌池含 BOSS 波 shuai）
-    name: '长坂坡', affixRate: 0,
+    name: '长坂坡', bossTitle: '曹仁', affixRate: 0,
     enemies: ['bing', 'qi', 'gong', 'shuai'],
     waveComps: WAVE_COMPS_BASE,
   },
   { // 第2章 乌林：+投石车，词缀 10%
-    name: '乌林', affixRate: 0.1,
+    name: '乌林', bossTitle: '曹休', affixRate: 0.1,
     enemies: ['bing', 'qi', 'gong', 'tou', 'shuai'],
     waveComps: [
       [['bing', 8]], [['bing', 10]], [['bing', 8], ['gong', 2]],
@@ -105,7 +105,7 @@ export const CHAPTER_PACKS = [
     ],
   },
   { // 第3章 赤壁：+藤甲兵（灼烧×2），词缀 20%
-    name: '赤壁', affixRate: 0.2,
+    name: '赤壁', bossTitle: '曹真', affixRate: 0.2,
     enemies: ['bing', 'qi', 'gong', 'teng', 'shuai'],
     waveComps: [
       [['bing', 8]], [['bing', 10]], [['bing', 6], ['teng', 2], ['gong', 2]],
@@ -124,7 +124,7 @@ export const CHAPTER_PACKS = [
     ],
   },
   { // 第4章 华容道：全敌池，词缀 35%
-    name: '华容道', affixRate: 0.35,
+    name: '华容道', bossTitle: '张郃', affixRate: 0.35,
     enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
     waveComps: [
       [['bing', 8]], [['bing', 8], ['teng', 2]], [['bing', 6], ['gong', 2], ['tou', 1]],
@@ -143,7 +143,7 @@ export const CHAPTER_PACKS = [
     ],
   },
   { // 第5章 荆州
-    name: '荆州', affixRate: 0.35,
+    name: '荆州', bossTitle: '徐晃', affixRate: 0.35,
     enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
     waveComps: [
       [['bing', 8]], [['bing', 8], ['teng', 2]], [['bing', 6], ['gong', 3], ['tou', 1]],
@@ -162,7 +162,7 @@ export const CHAPTER_PACKS = [
     ],
   },
   { // 第6章 成都
-    name: '成都', affixRate: 0.35,
+    name: '成都', bossTitle: '曹洪', affixRate: 0.35,
     enemies: ['bing', 'qi', 'gong', 'tou', 'teng', 'shuai'],
     waveComps: [
       [['bing', 8]], [['bing', 8], ['teng', 3]], [['bing', 6], ['gong', 3], ['tou', 1], ['teng', 1]],
