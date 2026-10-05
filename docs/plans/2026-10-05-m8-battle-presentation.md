@@ -14,6 +14,32 @@
 
 ---
 
+## ⚡ 执行进度交接快照（2026-10-06 换人交接，先读这段再动手）
+
+**已完成 Task 1-6（全部已复核 + 已推送 origin/master），剩 Task 7/8/9：**
+
+| Task | 内容 | Commit | 用例数（实跑） |
+|------|------|--------|--------------|
+| 1 | engine 只读事件流 frameEvents | `9c661d8` | 245（基线实际 236 非 234，T1 含 11 个 it 非 10） |
+| 2 | render/particles.js 粒子 v2 | `9162012` | 251 |
+| 3 | render/animator.js 部件动画器 | `9c0666c` | 261 |
+| 4 | cinematic 队列 + battleFx 全家桶 + audio 三音 + bossTitle | `9a724a0` | 277 |
+| 5 | battle.js 渲染接线 + 场景层次 | `142edff` | 285 |
+| 6 | core 吞帧时停接线 + 终态延后 | `850fc5a` | 285（无新 it）+ build:wx 首包 527KB ✓ |
+
+**对计划的已落地修正（后续任务必须沿用，勿回退）：**
+1. **渲染时钟双推进已修**：core.js loop battle 分支用 `battleFx.tick(0)` 取时不推进，`battleFx.update(dtMs)` 是渲染时钟唯一推进点（本计划 L2042 伪代码写错为 `tick(dtMs)`，已按修正落地，见 commit `850fc5a`）。
+2. `cinematic.update` 为消耗式 while 排空（单次 update 可跨过多个播完的短演出）。
+3. `battleFx.update` 首行推进 renderClock；`activeGhosts(now)` 以入参 now 为口径。
+4. Task 1 测试 leak 用例 t=0.9999（计划 0.999 按实算必挂）。
+5. `battleFx.activeGhosts/drawFloatsPublic` 为 Task 5 实际新增导出（计划未列）。
+
+**Task 8 注意**：`cinematic.js` 目前**未导出 drawCinematic**（battle.js 已留注释占位），Task 8 补齐后按计划接线。
+
+**Task 9 注意**：截图 9 张 390×844 dpr=2 入 `docs/screenshots/m8/`；browser_use 前必须激活 tab 防 rAF 节流；`__app.__debug` 注入技巧见计划 Step 9.3；完成后 spec 第八章 M8 行 ◐→✅。
+
+---
+
 ## 调研结论（写死的事实，工程师零上下文直接用）
 
 ### 引擎现状（改动锚点）
