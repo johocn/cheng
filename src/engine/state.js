@@ -42,6 +42,10 @@ export function createBattle(seed = 20260304, opts = {}) {
   const ci = Math.max(1, opts.chapterN || 1);
   state.packIdx = packIndex(ci);
   state.chapterPackRate = CHAPTER_PACKS[state.packIdx].affixRate;
+  // M7 模式：'chapter'（缺省零回归）| 'endless' | 'daily' | 'bossrush'
+  state.mode = opts.mode || 'chapter';
+  state.dailyAffix = opts.dailyAffix || null;
+  state.bossRound = 0;
   // M7 助战被动注入（core 由 save 算好传入；engine 不读 save）
   state.burnBonus = opts.bonus?.burnBonus || 0;   // 周瑜：灼烧 DOT 伤害 +20%/★
   state.frontHpCut = opts.bonus?.frontHpCut || 0; // 张辽：前 3 波敌 hp −8%/★
