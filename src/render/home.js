@@ -45,7 +45,7 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun', redDots = {}) {
   const ids = Object.keys(HEROES);
   ids.forEach((id, i) => {
     const cx = HOME_LAYOUT.heroX0 + i * HOME_LAYOUT.heroStep;
-    const h = save.heroes[id];
+    const h = save.heroes[id] || {}; // 旧档缺将键时按未拥有渲染（渲染循环不可崩）
     drawPortrait(ctx, cx, HOME_LAYOUT.heroY, HOME_LAYOUT.heroR, id, { owned: h.owned, selected: id === selectedHero && h.owned });
     ctx.fillStyle = h.owned ? C.ink : C.gray;
     ctx.font = `600 20px ${KAI}`;
@@ -57,7 +57,7 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun', redDots = {}) {
   });
 
   // 羁绊条
-  const ownedCnt = BOND_HEROES.filter((id) => save.heroes[id].owned).length;
+  const ownedCnt = BOND_HEROES.filter((id) => save.heroes[id]?.owned).length;
   panel(ctx, 20, 420, 680, 70);
   ctx.fillStyle = ownedCnt >= 6 ? C.ok : C.mut;
   ctx.font = `600 28px ${KAI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

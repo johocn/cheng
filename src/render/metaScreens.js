@@ -97,8 +97,8 @@ export function drawGacha(ctx, save, gachaResult) {
   // 卡池英雄一览（6 命小牌 + 获取态）：cx_i = 95 + 110i，末张 645 + r42 ≤ 696 不出画
   GACHA_POOL.forEach((id, i) => {
     const cx = 95 + i * 110;
-    drawPortrait(ctx, cx, L.poolPanel.y + 300, 42, id, { owned: save.heroes[id].owned, selected: false });
-    ctx.fillStyle = save.heroes[id].owned ? C.ink : C.gray;
+    drawPortrait(ctx, cx, L.poolPanel.y + 300, 42, id, { owned: save.heroes[id]?.owned, selected: false });
+    ctx.fillStyle = save.heroes[id]?.owned ? C.ink : C.gray;
     ctx.font = `600 20px ${KAI}`;
     ctx.fillText(HEROES[id].name, cx, L.poolPanel.y + 380);
   });

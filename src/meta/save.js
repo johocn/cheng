@@ -1,5 +1,6 @@
 // src/meta/save.js — 局外存档：localStorage / wx.setStorageSync 同构适配
 // 结构（spec 第七章 + M5 扩展）：{ v, wallet, heroes, progress, daily, iap, cosmetics }
+import { HEROES } from './heroes.js';
 const KEY = 'qqc_save_v1';
 
 export function defaultIap() {
@@ -75,8 +76,8 @@ export function loadSave() {
     parsed.cosmetics = { skin: 'ink', shadowOwned: false, ...(parsed.cosmetics || {}) };
     // M7 音频开关补齐（旧档无 settings；部分键保留用户已改值）
     parsed.settings = { sound: true, bgm: true, ...(parsed.settings || {}) };
-    // M7 扩池补齐：旧档可能缺周瑜/张辽键
-    for (const id of ['zhangliao', 'zhouyu']) {
+    // M7 扩池补齐：旧档缺任意武将键时按当前全池补（渲染层遍历 HEROES 全表）
+    for (const id of Object.keys(HEROES)) {
       parsed.heroes[id] ??= { owned: false, stars: 1, level: 1, frags: 0 };
     }
     // M7 征战字段补齐
