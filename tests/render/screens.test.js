@@ -4,7 +4,7 @@ import { it, expect } from 'vitest';
 import { SIGNIN_LAYOUT, hitSignin } from '../../src/render/signin.js';
 import { SHOP_LAYOUT, hitShop } from '../../src/render/shop.js';
 import { REVIVE_LAYOUT, hitRevive } from '../../src/render/revive.js';
-import { defaultSave } from '../../src/meta/save.js';
+import { defaultSave, todayStr } from '../../src/meta/save.js';
 
 it('signin 命中：返回/领取（未领可领）', () => {
   const B = SIGNIN_LAYOUT.backBtn, C = SIGNIN_LAYOUT.claimBtn;
@@ -13,7 +13,7 @@ it('signin 命中：返回/领取（未领可领）', () => {
 });
 it('signin 命中：当日已领时 claim 返回 null', () => {
   const save = defaultSave();
-  save.daily.signinClaimedDate = '2026-10-03';
+  save.daily.signinClaimedDate = todayStr(); // 动态当日（写死日期跨日必挂）
   const C = SIGNIN_LAYOUT.claimBtn;
   expect(hitSignin(C.x + 5, C.y + 5, save)).toBeNull();
 });
