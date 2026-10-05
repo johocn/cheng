@@ -52,6 +52,7 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = nul
     affix,
     siegeClock: 0, // 投石车轰击计时
     slowT: 0, stunT: 0, burnT: 0,
+    burnMul: 1 + (state.burnBonus || 0), // M7 周瑜被动：灼烧增伤乘区（enemy.js 灼烧结算已乘 burnMul）
   });
 }
 

@@ -9,7 +9,7 @@ import { drawPortrait } from './portrait.js';
 
 // 布局常量（720×1280）
 export const HOME_LAYOUT = {
-  heroY: 300, heroR: 40, heroStep: 96, heroX0: 72,   // 7 格横排
+  heroY: 300, heroR: 32, heroStep: 74, heroX0: 27,   // M7 9 格横排
   questBtn: { x: 20, y: 540, w: 213, h: 90 },        // M6 军务
   signinBtn: { x: 243, y: 540, w: 213, h: 90 },      // M5 入口行
   shopBtn: { x: 466, y: 540, w: 214, h: 90 },
@@ -39,7 +39,7 @@ export function drawHome(ctx, save, selectedHero = 'zhaoyun') {
   ctx.fillStyle = C.gray; ctx.font = `600 26px ${KAI}`;
   ctx.fillText(`敌军 ×${chapterMul(save.progress.chapter).toFixed(1)}`, 380 + cw / 2, cy + 88);
 
-  // 英雄横排（7 格）
+  // 英雄横排（9 格）
   const ids = Object.keys(HEROES);
   ids.forEach((id, i) => {
     const cx = HOME_LAYOUT.heroX0 + i * HOME_LAYOUT.heroStep;

@@ -28,7 +28,7 @@ describe('startWave — WAVE_COMPS 生成', () => {
     expect(s.stage).toBe('wave');
     expect(s.stageClock).toBe(0);
     expect(s.spawnQueue).toHaveLength(compCount(1)); // w1: 8 bing
-    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1, chMul: 1, affix: null }); // chMul：M3 章节系数默认 ×1；affix：M6 词缀（权重 0 恒 null）
+    expect(s.spawnQueue[0]).toEqual({ at: 0.5, type: 'bing', lane: 0, mul: 1, chMul: 1, hpMul: 1, affix: null }); // chMul：M3 章节系数默认 ×1；hpMul：M7 张辽开局压制因子（无 frontHpCut 恒 1）；affix：M6 词缀（权重 0 恒 null）
   });
 
   it('按组成表生成类型与数量，lane i%3 轮转', () => {

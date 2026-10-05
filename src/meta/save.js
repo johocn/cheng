@@ -18,6 +18,8 @@ export function defaultSave() {
       machao: { owned: false, stars: 1, level: 1, frags: 0 },
       huangzhong: { owned: false, stars: 1, level: 1, frags: 0 },
       lvbu: { owned: false, stars: 1, level: 1, frags: 0 },
+      zhangliao: { owned: false, stars: 1, level: 1, frags: 0 },
+      zhouyu: { owned: false, stars: 1, level: 1, frags: 0 },
     },
     progress: { chapter: 1, chapterClear: 0, waveBest: 0 },
     daily: { freePulls: 0, signinCount: 0, signinClaimedDate: null, date: todayStr() },
@@ -67,6 +69,10 @@ export function loadSave() {
     // M6 任务字段补齐（旧档迁移；touchQuests 负责日/周/赛季内容重置）
     parsed.quests = { ...defaultSave().quests, ...(parsed.quests || {}) };
     parsed.cosmetics = { skin: 'ink', shadowOwned: false, ...(parsed.cosmetics || {}) };
+    // M7 扩池补齐：旧档可能缺周瑜/张辽键
+    for (const id of ['zhangliao', 'zhouyu']) {
+      parsed.heroes[id] ??= { owned: false, stars: 1, level: 1, frags: 0 };
+    }
     return parsed;
   } catch {
     return defaultSave();

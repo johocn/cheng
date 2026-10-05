@@ -50,6 +50,7 @@ describe('spawnEnemy', () => {
       hp: ENEMY_TYPES.bing.hp, hpMax: ENEMY_TYPES.bing.hp,
       speedMul: 1, dmgBonus: 0, affix: null, siegeClock: 0,
       slowT: 0, stunT: 0, burnT: 0,
+      burnMul: 1, // M7 周瑜被动：灼烧增伤乘区（无 burnBonus 时 ×1）
     });
     expect(s.enemies[1].id).toBe(2);
     expect(s.nextEnemyId).toBe(3);

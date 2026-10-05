@@ -8,11 +8,14 @@ export const HEROES = {
   zhugeliang: { name: '诸葛亮', quality: 'SR',  tag: '计策增益', obtain: '抽卡',     initial: false, char: '诸' },
   machao:     { name: '马超',   quality: 'SR',  tag: '冲锋击退', obtain: '章节奖励', initial: false, char: '马' },
   huangzhong: { name: '黄忠',   quality: 'R',   tag: '远程穿透', obtain: '章节奖励', initial: false, char: '黄' },
+  zhangliao:  { name: '张辽',   quality: 'SSR', tag: '突袭压制', obtain: '抽卡',     initial: false, char: '辽' },
+  zhouyu:     { name: '周瑜',   quality: 'SSR', tag: '火计灼烧', obtain: '抽卡',     initial: false, char: '瑜' },
   lvbu:       { name: '吕布',   quality: 'UR',  tag: '隐藏全属性', obtain: '限时活动', initial: false, char: '吕' },
 };
 
-export const GACHA_POOL = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'machao', 'huangzhong'];
-export const BOND_HEROES = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'machao', 'huangzhong'];
+export const GACHA_POOL = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'machao', 'huangzhong', 'zhangliao', 'zhouyu'];
+export const BOND_HEROES = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'machao', 'huangzhong']; // 蜀国全家福 6 人（不变）
+export const BOND_HEROES_ALL = [...BOND_HEROES, 'zhangliao', 'zhouyu']; // 汉室云集 8 人（M7）
 
 export const DUP_FRAGS = { UR: 15, SSR: 5, SR: 3, R: 1 };
 export const STAR_MAX = 5;

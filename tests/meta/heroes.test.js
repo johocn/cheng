@@ -5,12 +5,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   HEROES, GACHA_POOL, DUP_FRAGS, STAR_MAX, FRAGS_PER_STAR,
-  CHAPTERS, CH_HERO, chapterName, chapterMul, BOND_HEROES,
+  CHAPTERS, CH_HERO, chapterName, chapterMul, BOND_HEROES, BOND_HEROES_ALL,
 } from '../../src/meta/heroes.js';
 
 describe('meta/heroes 数据表', () => {
-  it('7 命英雄，品质与定位符合 spec', () => {
-    expect(Object.keys(HEROES).length).toBe(7);
+  it('9 命英雄，品质与定位符合 spec（M7 扩池 +2）', () => {
+    expect(Object.keys(HEROES).length).toBe(9);
     expect(HEROES.zhaoyun).toMatchObject({ name: '赵云', quality: 'UR', initial: true });
     expect(HEROES.guanyu.quality).toBe('SSR');
     expect(HEROES.zhangfei.quality).toBe('SSR');
@@ -18,14 +18,17 @@ describe('meta/heroes 数据表', () => {
     expect(HEROES.machao.quality).toBe('SR');
     expect(HEROES.huangzhong.quality).toBe('R');
     expect(HEROES.lvbu).toMatchObject({ quality: 'UR', obtain: '限时活动' });
+    expect(HEROES.zhouyu).toMatchObject({ quality: 'SSR', obtain: '抽卡' });
+    expect(HEROES.zhangliao).toMatchObject({ quality: 'SSR', obtain: '抽卡' });
   });
 
-  it('吕布不进抽卡池、不参与羁绊；其余 6 命进池且为蜀国羁绊', () => {
+  it('吕布不进抽卡池、不参与羁绊；其余 8 命进池且属 8 人汉室云集（蜀国 6 人子集）', () => {
     expect(GACHA_POOL).not.toContain('lvbu');
-    expect(GACHA_POOL.length).toBe(6);
+    expect(GACHA_POOL.length).toBe(8);
     expect(BOND_HEROES.length).toBe(6);
     expect(BOND_HEROES).not.toContain('lvbu');
-    for (const id of GACHA_POOL) expect(BOND_HEROES).toContain(id);
+    expect(BOND_HEROES_ALL.length).toBe(8);
+    for (const id of GACHA_POOL) expect(BOND_HEROES_ALL).toContain(id); // M7：抽卡池 ⊆ 汉室云集 8 人
   });
 
   it('重复转碎片：UR15 SSR5 SR3 R1；升星 3 碎片/星 ★5 封顶', () => {

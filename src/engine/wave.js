@@ -4,11 +4,12 @@ import { CHAPTER_PACKS, TOTAL_WAVES, SPAWN_GAP_MIN, ENEMY_GROWTH, BOSS_WAVES, AF
 import { rngNext } from './rng.js';
 import { spawnEnemy } from './enemy.js';
 
-// 波开始：构建该波刷怪队列 [{ at(波内秒), type, lane, mul, chMul, affix }]，按时间升序
+// 波开始：构建该波刷怪队列 [{ at(波内秒), type, lane, mul, chMul, hpMul, affix }]，按时间升序
 export function startWave(state) {
   const pack = CHAPTER_PACKS[state.packIdx || 0];
   const comp = pack.waveComps[state.wave - 1];
   const mul = 1 + (state.wave - 1) * ENEMY_GROWTH;
+  const hpMul = state.wave <= 3 && state.frontHpCut ? 1 - state.frontHpCut : 1; // M7 张辽：开局压制（前 3 波敌 hp 减益因子）
   const chMul = state.chapterMul || 1; // 章节敌方 hp 系数（M3 局外注入，默认 ×1 零回归）
   const rate = state.chapterPackRate ?? 0; // 章节包精英词缀权重（M6 Task 4 注入，缺省 0）
   const bossWave = BOSS_WAVES.includes(state.wave);
@@ -22,7 +23,7 @@ export function startWave(state) {
       const affix = (bossWave || rngNext(state.rng) < rate)
         ? AFFIX_KEYS[Math.floor(rngNext(state.rng) * AFFIX_KEYS.length)]
         : null;
-      events.push({ at, type, lane, mul, chMul, affix });
+      events.push({ at, type, lane, mul, chMul, hpMul, affix });
       at += gap;
       lane = (lane + 1) % 3;
     }
@@ -39,7 +40,7 @@ export function updateWave(state, dtS) {
   state.stageClock += dtS;
   while (state.spawnQueue.length && state.spawnQueue[0].at <= state.stageClock) {
     const ev = state.spawnQueue.shift();
-    spawnEnemy(state, ev.type, ev.lane, ev.mul, ev.chMul, ev.affix);
+    spawnEnemy(state, ev.type, ev.lane, ev.mul, ev.chMul * (ev.hpMul ?? 1), ev.affix); // hpMul：M7 张辽开局压制因子
   }
   if (!state.spawnQueue.length && state.enemies.length === 0) {
     state.stage = state.wave >= TOTAL_WAVES ? 'victory' : 'skillPick';
