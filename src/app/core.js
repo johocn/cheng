@@ -104,6 +104,7 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
 
   // ===== 军务面板视图数据（红点口径统一走 meta/quests.js anyClaimable，core 不另实现）=====
   function questRows() {
+    if (questTab === 'pass') return []; // 战令页无任务行（渲染循环无条件求值本函数，防 q.pass.progress 误读崩溃）
     const q = questsOf(save);
     const table = questTab === 'daily' ? DAILY_QUESTS : WEEKLY_QUESTS;
     return table.map((d) => ({
