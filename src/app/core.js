@@ -1,7 +1,8 @@
 // src/app/core.js — 平台无关应用壳（M4 自 h5/main.js 抽取）
 // 容器只做三件事：注入 Canvas、桥接输入、桥接平台 API；本模块承载其余全部
 import { createBattle, advanceFrame } from '../engine/state.js';
-import { LOGICAL_W, LOGICAL_H } from '../engine/config.js';
+import { LOGICAL_W, LOGICAL_H, ULT_JICE_COST } from '../engine/config.js';
+import { countJice } from '../engine/ult.js'; // 计策不足点大招的 toast 反馈
 import { createRng } from '../engine/rng.js';
 import { drawBattle } from '../render/battle.js';
 import { drawHome, hitHome } from '../render/home.js';
@@ -79,7 +80,12 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         if (pin) {
           if (pin.pickSkill !== undefined) sfx('skill');
           else if (pin.clickSlot !== undefined) sfx('compose');
-          else if (pin.useUlt) sfx('ult');
+          else if (pin.useUlt) {
+            const n = countJice(battleState);
+            if (battleState.ult) { /* 演出中按钮已隐藏，命中残留忽略 */ }
+            else if (n >= ULT_JICE_COST) sfx('ult');
+            else showToast(`大招需 ${ULT_JICE_COST} 张计策（${n}/${ULT_JICE_COST}）`);
+          }
         }
       }
       return;
