@@ -331,6 +331,14 @@ const ELITE_INK = '#f4ecd8'; // 印面字色（纸色）
 // 武印层（battle.js 敌人层后调用，印章罩住敌人语义）：
 // 印章 q：0-25% 盖下（scale 2.1→1 ease-out + rotate -14°→-5°）、25-80% 停留、80-100% 淡出；
 // 降级 minor 只画头顶词缀色点。惰性过期清理（q≥1 移除）。不吞帧、不屏震。
+// 刷出点 clamp 进屏（lane0 起点 y=-40 / lane1、2 x=±40 在画面外，印章须可见）
+function clampSpawn(x, y) {
+  return {
+    x: Math.max(50, Math.min(670, x)),
+    y: Math.max(96, Math.min(1230, y)),
+  };
+}
+
 export function drawEliteSpawns(ctx, now) {
   if (!eliteList.length) return;
   eliteList = eliteList.filter((f) => {
@@ -341,13 +349,14 @@ export function drawEliteSpawns(ctx, now) {
     const life = (f.minor ? ELITE_FX.minorDur : ELITE_FX.dur) * 1000 / speed;
     const q = (now - f.born) / life;
     if (q < 0 || q >= 1) continue;
+    const { x: fx, y: fy } = clampSpawn(f.x, f.y);
     const color = AFFIX_COLORS[f.affix] || AFFIX_COLORS.iron;
     ctx.save();
     if (f.minor) { // 降级：头顶色点（半程淡出）
       ctx.globalAlpha = 0.85 * (1 - q * 0.5);
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(f.x, f.y - 44, 5, 0, Math.PI * 2);
+      ctx.arc(fx, fy - 44, 5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       continue;
@@ -361,7 +370,7 @@ export function drawEliteSpawns(ctx, now) {
       alpha = 1 - (q - 0.8) / 0.2;
     }
     ctx.globalAlpha = alpha;
-    ctx.translate(f.x, f.y);
+    ctx.translate(fx, fy);
     ctx.rotate((rot * Math.PI) / 180);
     ctx.scale(s, s);
     ctx.fillStyle = color;

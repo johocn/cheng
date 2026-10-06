@@ -53,6 +53,18 @@ describe('M10 武印盖章：consume 入列与印章绘制', () => {
     expect(fns).toContain('rotate');
   });
 
+  it('屏外刷出点 clamp 进屏（lane0 起点 y=-40 → 印章中心 y≥96）', () => {
+    battleFx.consume([{ type: 'elite', affix: 'iron', x: 360, y: -40 }], {}, 1000);
+    const ctx = makeCtx();
+    battleFx.drawEliteSpawns(ctx, 1000);
+    const tr = ctx.__calls.filter((c) => c.fn === 'translate').map((c) => c.args);
+    expect(tr.length).toBeGreaterThan(0);
+    for (const [x, y] of tr) {
+      expect(x).toBeGreaterThanOrEqual(50);
+      expect(y).toBeGreaterThanOrEqual(96);
+    }
+  });
+
   it('dur(0.5s) 过期不再绘制', () => {
     battleFx.consume([evOf('iron')], {}, 1000);
     const ctx = makeCtx();

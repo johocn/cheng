@@ -103,3 +103,11 @@ export const CHEST_ATK = 0.1;    // +10% 乘区
 ## 交接快照（随 Task 推进更新）
 
 - 2026-10-06：立项。mockup 定稿：精英 A 武印盖章 + 宝箱 A 宝箱仪式版（PureShowWidget 内联预览，用户拍板）。M9 基线：327/327 绿、wx 529KB、HEAD dd4c379 已推送。
+- 2026-10-06：Task1-5 完成并逐一提交（3f4fcfa config+engine elite 事件 / dbbf049 render 武印盖章+限流降级 / b564aec chest.js+config 奖励池 / 6f3a26a chestPick 流转+hitBattle+音效 / b4c91d8 render 面板+autoPlay 适配）。
+- 2026-10-06：Task6 收口完成。
+  - **bug 修复**：精英武印屏外——lane0 刷出点 LANES[0][0]=(360,-40) 在画面外，印章画在可视区外（截图验收发现）。修复：drawEliteSpawns 加 clampSpawn（x∈[50,670]、y∈[96,1230]），补 clamp 测试。
+  - 集成验收按计划预期修复：autoPlay 补 chestPick 分支（选 0），15 波通关日志 `stage=victory wave=15 hp=17/20 击杀=249`（宝箱正向余量变好）。
+  - 全量回归 365/365 绿（M9 基线 327 + M10 新增 38）。
+  - 手机截图（390×844 dpr=2）入库 docs/screenshots/m10/：m10-A-elite-stamp.png（武印盖章，clamp 后 lane0 印章可见）+ m10-B-chest-panel.png（宝箱三选一面板）。
+  - wx 构建 534 KB（game.js 111KB + heroes 423KB），通过断言。
+  - 遗留：精英/开箱音效、endless/bossrush 宝箱、稀有度分级（见 Backlog 节）。
