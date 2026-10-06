@@ -1,5 +1,5 @@
 // engine/rng.js — mulberry32 种子随机：rng 是普通对象，直接存进 battle state，
-// structuredClone 自动复制，advanceFrame 保持纯函数确定性。
+// advanceFrame 经 deepClone 自动复制（wx 无 structuredClone，见 engine/clone.js），保持纯函数确定性。
 export function createRng(seed) {
   return { s: seed >>> 0 };
 }

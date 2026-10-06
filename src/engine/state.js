@@ -3,6 +3,7 @@
 // stage: interval → wave → skillPick →（下一波 wave…）→ victory | over
 import { HP_MAX, HERO_POS, CHAPTER_PACKS, packIndex } from './config.js';
 import { createRng } from './rng.js';
+import { deepClone } from './clone.js'; // wx 小游戏无 structuredClone，引擎层自研深拷贝
 import { moveEnemies, reapDead } from './enemy.js';
 import { heroAttack } from './hero.js';
 import { startWave, updateWave } from './wave.js';
@@ -66,7 +67,7 @@ export function refreshStats(state) {
 export function advanceFrame(state, inputs, dtMs) {
   if (state.stage === 'victory' || state.stage === 'over') return state; // 终态冻结
 
-  const work = structuredClone(state);
+  const work = deepClone(state);
   work.frame++;
   work.frameEvents = []; // M8：上一帧事件不残留（只读事件流）
   let remain = Math.max(0, dtMs);
