@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createBattle, advanceFrame } from '../../src/engine/state.js';
 import { spawnEnemy, reapDead } from '../../src/engine/enemy.js';
+import { dealDamage } from '../../src/engine/combat.js';
 import { COMBO_WINDOW, HP_MAX } from '../../src/engine/config.js';
 
 function makeKillState(clock) {
@@ -49,6 +50,42 @@ describe('M9 Combo：reapDead 连击计数', () => {
     s.enemies[0].hp = 0;
     reapDead(s);
     expect(s.combo).toBe(1);
+  });
+});
+
+describe('M9 Combo：直伤击杀计数（dealDamage 主路径）', () => {
+  it('dealDamage 致死：combo 递增且 lastKillClock 跟随（真实主力击杀路径）', () => {
+    const s = makeKillState(2.0);
+    spawnEnemy(s, 'bing', 0, 1, 1);
+    dealDamage(s, s.enemies[0].id, 99999);
+    expect(s.killCount).toBe(1);
+    expect(s.combo).toBe(1);
+    expect(s.lastKillClock).toBe(2.0);
+    s.stageClock = 2.5;
+    spawnEnemy(s, 'bing', 0, 1, 1);
+    dealDamage(s, s.enemies[0].id, 99999);
+    expect(s.combo).toBe(2);
+    expect(s.lastKillClock).toBe(2.5);
+  });
+
+  it('直伤死不与 reapDead 双重计数（敌人已移出，收尸不重复登记）', () => {
+    const s = makeKillState(1.0);
+    spawnEnemy(s, 'bing', 0, 1, 1);
+    dealDamage(s, s.enemies[0].id, 99999);
+    reapDead(s); // 收尸空跑
+    expect(s.killCount).toBe(1);
+    expect(s.combo).toBe(1);
+    expect(s.coins).toBe(10); // 兵 reward 10 只发一次
+  });
+
+  it('advanceFrame 真实链路：英雄攻击致死 combo≥1', () => {
+    const s = createBattle(1, { chapterN: 1 });
+    s.stage = 'wave'; s.wave = 1; s.stageClock = 0;
+    spawnEnemy(s, 'bing', 0, 1, 1);
+    s.enemies[0].t = 0.96; // 逼近英雄进入普攻范围
+    const out = advanceFrame(s, null, 1000);
+    expect(out.killCount).toBeGreaterThanOrEqual(1);
+    expect(out.combo).toBeGreaterThanOrEqual(1);
   });
 });
 

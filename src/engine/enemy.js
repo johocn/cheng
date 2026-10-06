@@ -136,17 +136,23 @@ export function moveEnemies(state, dtSec) {
   return leaked;
 }
 
-// 死亡清尸：hp≤0 的敌人入金币并移除（锦囊/灼烧/大招伤害的统一收口）
+// 击杀登记（金币/计数/M9 连击窗口）——dealDamage 直伤死与 reapDead 收尸共用，
+// 两路互斥（直伤死即 splice 移出，不会被收尸重复登记）
+export function registerKill(state, type) {
+  state.coins += ENEMY_TYPES[type].reward;
+  state.killCount = (state.killCount || 0) + 1;
+  // M9 连击：窗口内递增，超窗归零重计（旧式 state 缺字段时按超窗处理，零回归）
+  const gap = (state.stageClock ?? Infinity) - (state.lastKillClock ?? -Infinity);
+  if (gap > COMBO_WINDOW || state.combo == null) state.combo = 0;
+  state.combo += 1;
+  state.lastKillClock = state.stageClock ?? state.lastKillClock;
+}
+
+// 死亡清尸：hp≤0 的敌人入金币并移除（灼烧/锦囊/大招伤害的统一收口；直伤走 combat.dealDamage）
 export function reapDead(state) {
   for (const e of state.enemies) {
     if (e.hp <= 0) {
-      state.coins += ENEMY_TYPES[e.type].reward;
-      state.killCount = (state.killCount || 0) + 1;
-      // M9 连击：窗口内递增，超窗归零重计（旧式 state 缺字段时按超窗处理，零回归）
-      const gap = (state.stageClock ?? Infinity) - (state.lastKillClock ?? -Infinity);
-      if (gap > COMBO_WINDOW || state.combo == null) state.combo = 0;
-      state.combo += 1;
-      state.lastKillClock = state.stageClock ?? state.lastKillClock;
+      registerKill(state, e.type);
       const p = pathPoint(e.lane, e.t);
       (state.frameEvents = state.frameEvents || []).push({
         type: 'kill', x: p.x, y: p.y, dmg: 0, crit: false,
