@@ -23,15 +23,15 @@ function makeCtx() {
 beforeEach(() => { reset(); cineReset(); });
 
 describe('M8 battleFx 吞帧时停', () => {
-  it('hit 30ms / 暴击 50ms / kill 70ms 分级', () => {
+  it('hit 30ms / 暴击 70ms（M11 加深）/ kill 70ms 分级', () => {
     let now = 1000;
     consume([{ type: 'hit', x: 0, y: 0, dmg: 10, crit: false, enemyId: 1, enemyType: 'bing' }], { enemies: [] }, now);
     expect(frozen(1001)).toBe(true);
     expect(frozen(1031)).toBe(false); // 30ms 后解冻
     now = 2000;
     consume([{ type: 'hit', x: 0, y: 0, dmg: 10, crit: true, enemyId: 1, enemyType: 'bing' }], { enemies: [] }, now);
-    expect(frozen(2049)).toBe(true);
-    expect(frozen(2051)).toBe(false);
+    expect(frozen(2069)).toBe(true);
+    expect(frozen(2071)).toBe(false);
     now = 3000;
     consume([{ type: 'kill', x: 0, y: 0, dmg: 10, crit: false, enemyId: 1, enemyType: 'bing', cause: 'direct' }], { enemies: [] }, now);
     expect(frozen(3069)).toBe(true);
@@ -60,7 +60,7 @@ describe('M8 battleFx 吞帧时停', () => {
 });
 
 describe('M8 battleFx 反馈状态', () => {
-  it('hit 生成飘字（普通墨 18px / 暴击朱砂 23px）+ 受击闪白记录', () => {
+  it('hit 生成飘字（普通墨 18px / 暴击朱砂 22px，M11 放大）+ 受击闪白记录', () => {
     const now = 1000;
     consume([
       { type: 'hit', x: 100, y: 200, dmg: 12.4, crit: false, enemyId: 1, enemyType: 'bing' },
@@ -71,7 +71,7 @@ describe('M8 battleFx 反馈状态', () => {
     expect(f0.text).toBe('12'); // 取整
     expect(f0.size).toBe(18);
     expect(f0.crit).toBe(false);
-    expect(floats()[1].size).toBe(23);
+    expect(floats()[1].size).toBe(22); // M11：23→22
     expect(floats()[1].crit).toBe(true);
     expect(enemyHitFlash(1, 1050)).toBe(true);  // 80ms 内
     expect(enemyHitFlash(1, 1100)).toBe(false); // 过期

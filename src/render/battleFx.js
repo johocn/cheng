@@ -3,10 +3,13 @@
 import { sfx } from '../platform/audio.js';
 import * as particles from './particles.js';
 import * as cinematic from './cinematic.js';
-import { HERO_POS, BOSS_SKILL, CHAPTER_PACKS, ELITE_FX, AFFIX_COLORS, AFFIXES } from '../engine/config.js';
+import { HERO_POS, BOSS_SKILL, CHAPTER_PACKS, ELITE_FX, AFFIX_COLORS, AFFIXES, BOW_FX_DUR } from '../engine/config.js';
 import { pathPoint } from '../engine/enemy.js';
 
-const HIT = { normal: 30, crit: 50, kill: 70, cap: 120 };
+const HIT = { normal: 30, crit: 70, kill: 70, cap: 120 }; // M11：暴击 hitStop 50→70 加深
+const SPEAR_FX_DUR = [0.25, 0.5, 0.34, 0.5];              // M11 枪四档演出时长（thrust/pierce/sweep/circle）
+const TAU = Math.PI * 2;
+const easeOut = (q) => 1 - Math.pow(1 - q, 3);
 
 let speed = 1;
 let renderClock = 0;      // 渲染层时钟（真实推进，吞帧不影响；粒子/飘字/演出用）
@@ -15,7 +18,7 @@ let shakeState = null;    // { amp, start, dur }
 let floatList = [];       // 飘字
 let enemyFx = new Map();  // id → { hitAt, knockAt, dieAt, die:{type,x,y,affix} }
 let leakFlashUntil = 0;
-let heroAtk = null;       // { at, ang }
+let heroAtk = null;       // M11 { mode, stage, at, ang, x, y, range, splash }（heroAtk 事件驱动）
 let prevUltT = -1;        // 大招分镜节点检测
 let comboJumpAt = 0;      // M9 连击弹跳起点（kill 事件重置）
 let bossFlash = null;     // M9 Boss 技能结算闪现 { x, y, at }（事件携带 Boss 坐标）
@@ -102,10 +105,16 @@ export function ghostOf(id, now) {
 
 export function leakFlash(now) { return now < leakFlashUntil; }
 
-// 赵云突刺动画（hit 事件驱动，200ms）
+// 赵云普攻演出（M11：heroAtk 事件驱动，枪四档/弓三档双形态；hit 兜底 thrust）
 export function heroAttackAnim(now) {
-  if (!heroAtk || now - heroAtk.at >= 200 / speed) return { active: false, ang: 0, t: 0 };
-  return { active: true, ang: heroAtk.ang, t: (now - heroAtk.at) / 1000 };
+  if (!heroAtk) return { active: false };
+  const dur = heroAtk.mode === 'bow'
+    ? (BOW_FX_DUR.draw + BOW_FX_DUR.fly)
+    : SPEAR_FX_DUR[heroAtk.stage];
+  const t = (now - heroAtk.at) / 1000;
+  if (t < 0 || t >= dur / speed) return { active: false };
+  return { active: true, mode: heroAtk.mode, stage: heroAtk.stage, ang: heroAtk.ang,
+    x: heroAtk.x, y: heroAtk.y, range: heroAtk.range, splash: heroAtk.splash, t, dur };
 }
 
 // ===== 事件消费（core 在 advanceFrame 之后调用；用完即弃由 core 置空 frameEvents）=====
@@ -117,13 +126,18 @@ export function consume(events, state, now) {
       fx.hitAt = now;
       fx.knockAt = now;
       enemyFx.set(ev.enemyId, fx);
-      particles.splash(ev.x, ev.y, ev.crit ? 10 : 6);
+      particles.splash(ev.x, ev.y, ev.crit ? 18 : 14); // M11 放大：6/10→14/18
       floatList.push({
         x: ev.x, y: ev.y - 30, text: String(Math.round(ev.dmg)),
-        crit: !!ev.crit, size: ev.crit ? 23 : 18, born: renderClock,
+        crit: !!ev.crit, size: ev.crit ? 22 : 18, born: renderClock, // M11 放大：暴击 23→22 朱砂大字
       });
-      heroAtk = { at: now, ang: Math.atan2(ev.y - HERO_POS.y, ev.x - HERO_POS.x) };
+      if (!heroAtk || heroAtk.mode !== 'bow' || now - heroAtk.at >= (BOW_FX_DUR.draw + BOW_FX_DUR.fly) * 1000 / speed) {
+        heroAtk = { mode: 'spear', stage: 0, at: now, ang: Math.atan2(ev.y - HERO_POS.y, ev.x - HERO_POS.x) }; // 兜底：直伤（闪电链等）也出小枪
+      }
       sfx('hit');
+    } else if (ev.type === 'heroAtk') { // M11：普攻本体演出事件（枪四档/弓三档）
+      heroAtk = { mode: ev.mode, stage: ev.stage, at: now, ang: ev.ang,
+        x: ev.x, y: ev.y, range: ev.range, splash: ev.splash };
     } else if (ev.type === 'kill') {
       addHitStop(HIT.kill, now);
       const fx = enemyFx.get(ev.enemyId) || {};
@@ -408,3 +422,121 @@ function drawBossBubble(ctx, bx, by, clock) {
   ctx.fillText('看我横扫千军！', bx, y + h / 2 + 1);
   ctx.restore();
 }
+
+// ===== M11 drawHeroAttack：普攻本体演出（金环脉冲 + 枪四档 / 弓三档，heroAtk 事件驱动）=====
+export function drawHeroAttack(ctx, now) {
+  const a = heroAttackAnim(now);
+  if (!a.active) return false;
+  const q = Math.min(1, a.t / a.dur);
+  ctx.save();
+  ctx.translate(HERO_POS.x, HERO_POS.y);
+  ctx.globalAlpha = (1 - q) * 0.7; // 金环脉冲：所有档通用
+  ctx.strokeStyle = '#c9a227';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 24 + 16 * easeOut(q), 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  if (a.mode === 'spear') drawSpearStage(ctx, a, q);
+  else drawBowStage(ctx, a, q, now);
+  ctx.restore();
+  return true;
+}
+
+// 枪杆+枪尖+红缨+飞白（局部坐标，rotate 前置；len 杆基长 ext 突伸 alpha 透明度）
+function drawSpearBar(ctx, ang, len, ext, alpha) {
+  ctx.save();
+  ctx.rotate(ang);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = 'rgba(201,162,39,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 42, -0.5, 0.2);
+  ctx.stroke();
+  ctx.strokeStyle = '#c9a227';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(18, 0);
+  ctx.lineTo(16 + len + ext, 0);
+  ctx.stroke();
+  ctx.fillStyle = '#1f1b16';
+  ctx.beginPath();
+  ctx.moveTo(22 + len + ext, 0);
+  ctx.lineTo(12 + len + ext, -3.5);
+  ctx.lineTo(12 + len + ext, 3.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#9e2a1e';
+  ctx.beginPath();
+  ctx.moveTo(12 + len + ext, 0);
+  ctx.lineTo(6 + len + ext, -5);
+  ctx.lineTo(6 + len + ext, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSpearStage(ctx, a, q) {
+  if (a.stage === 0) { // 壹 单枪突刺（M8 原版保留）
+    drawSpearBar(ctx, a.ang, 22, Math.sin(Math.min(1, q / 0.8) * Math.PI) * 26, 1);
+  } else if (a.stage === 1) { // 贰 龙胆突刺：长枪+双层残影+枪尖气浪
+    const ext = Math.sin(q * Math.PI) * 70;
+    for (let j = 2; j >= 1; j--) {
+      const q2 = q - j * 0.12;
+      if (q2 > 0 && q2 < 1) drawSpearBar(ctx, a.ang, 22, Math.sin(q2 * Math.PI) * 70, j === 1 ? 0.35 : 0.18);
+    }
+    drawSpearBar(ctx, a.ang, 22, ext, 1);
+    if (q > 0.35 && q < 0.9) { // 白描气浪三线
+      const tipx = Math.cos(a.ang) * (38 + ext), tipy = Math.sin(a.ang) * (38 + ext);
+      ctx.strokeStyle = `rgba(31,27,22,${(0.4 * (1 - q)).toFixed(3)})`;
+      ctx.lineWidth = 1.2;
+      for (let m = 0; m < 3; m++) {
+        const aa = a.ang + (m - 1) * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(tipx + Math.cos(aa) * 6, tipy + Math.sin(aa) * 6);
+        ctx.lineTo(tipx + Math.cos(aa) * (16 + m * 5), tipy + Math.sin(aa) * (16 + m * 5));
+        ctx.stroke();
+      }
+    }
+  } else if (a.stage === 2) { // 叁 横扫枪风：120° 扇形墨浪+三道鎏金飞白弧+扫击枪
+    const cur = a.ang - 1.05 + 2.1 * q;
+    ctx.fillStyle = `rgba(31,27,22,${(0.16 * (1 - q * 0.5)).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, a.range * 0.95, a.ang - 1.05, cur);
+    ctx.closePath();
+    ctx.fill();
+    for (let k = 0; k < 3; k++) {
+      ctx.strokeStyle = `rgba(201,162,39,${((1 - q * 0.75) * (0.55 - k * 0.13)).toFixed(3)})`;
+      ctx.lineWidth = 2.6 - k * 0.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, a.range * (0.5 + k * 0.22), Math.max(a.ang - 1.05, cur - 0.6), cur);
+      ctx.stroke();
+    }
+    drawSpearBar(ctx, cur, 40, 0, 1);
+  } else { // 肆 枪圈墨波：鎏金虚线射程环显形+双圈墨波+360° 枪影环
+    const ringA = Math.sin(q * Math.PI);
+    ctx.strokeStyle = `rgba(201,162,39,${(ringA * 0.55).toFixed(3)})`;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([7, 6]);
+    ctx.beginPath();
+    ctx.arc(0, 0, a.range, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (let w = 0; w < 2; w++) {
+      const qw = Math.max(0, Math.min(1, q * 1.25 - w * 0.18));
+      if (qw <= 0) continue;
+      ctx.strokeStyle = `rgba(31,27,22,${(0.32 * (1 - qw)).toFixed(3)})`;
+      ctx.lineWidth = w ? 2 : 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(2, a.range * easeOut(qw) - w * 14), 0, TAU);
+      ctx.stroke();
+    }
+    for (let s2 = 5; s2 >= 0; s2--) {
+      drawSpearBar(ctx, -Math.PI / 2 + q * TAU - s2 * 0.09, 38, 0, s2 === 0 ? 1 : 0.4 * (1 - s2 / 6));
+    }
+  }
+}
+
+// 弓三档演出（Task3 实现；占位保证 mode=bow 不误画枪）
+function drawBowStage(ctx, a, q, now) {}

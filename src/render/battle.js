@@ -155,12 +155,11 @@ function drawHpBar(ctx, x, y, ratio) {
   ctx.fillRect(x - bw / 2, y, bw * Math.max(0, Math.min(1, ratio)), bh);
 }
 
-// ===== M8 改造：赵云（双环底牌保留 + 攻击突刺长枪）=====
+// ===== M11：赵云（双环底牌保留 + drawHeroAttack 枪四档/弓三档演出分派）=====
 function drawHero(ctx, state, now) {
   const Art = globalThis.Art;
   Art.drawHeroToken(ctx, HERO_POS.x, HERO_POS.y, 36, 1);
-  const atk = battleFx.heroAttackAnim(now);
-  if (atk.active) drawHeroSpear(ctx, HERO_POS.x, HERO_POS.y, atk.ang, atk.t);
+  battleFx.drawHeroAttack(ctx, now);
 }
 
 // ===== M8 新增：漏怪城门红闪（200ms）=====
