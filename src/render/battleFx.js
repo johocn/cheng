@@ -142,6 +142,7 @@ export function consume(events, state, now) {
     } else if (ev.type === 'heroAtk') { // M11：普攻本体演出事件（枪四档/弓三档）
       heroAtk = { mode: ev.mode, stage: ev.stage, at: now, ang: ev.ang,
         x: ev.x, y: ev.y, range: ev.range, splash: ev.splash };
+      sfx(ev.mode === 'spear' ? `spear${ev.stage + 1}` : `bow${Math.min(2, ev.stage) + 1}`, 1 / speed); // M12：出手音（sc 对齐快进，齐射错相在配方内排程）
     } else if (ev.type === 'kill') {
       addHitStop(HIT.kill, now);
       const fx = enemyFx.get(ev.enemyId) || {};
