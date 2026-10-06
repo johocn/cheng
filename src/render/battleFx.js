@@ -8,6 +8,10 @@ import { pathPoint } from '../engine/enemy.js';
 
 const HIT = { normal: 30, crit: 70, kill: 70, cap: 120 }; // M11：暴击 hitStop 50→70 加深
 const SPEAR_FX_DUR = [0.25, 0.5, 0.34, 0.5];              // M11 枪四档演出时长（thrust/pierce/sweep/circle）
+const BOW_GOLD = '#c9a227';                                // M11 弓演出配色（鎏金/墨/朱砂，贴水墨主风格）
+const BOW_INK = '#1f1b16';
+const BOW_SEAL = '#9e2a1e';
+const BOW_VOLLEYS = [[0], [0, 0.12], [0, 0.08, 0.16]];     // 弓各档齐射相位延迟（秒；贰双发/叁三连）
 const TAU = Math.PI * 2;
 const easeOut = (q) => 1 - Math.pow(1 - q, 3);
 
@@ -109,7 +113,7 @@ export function leakFlash(now) { return now < leakFlashUntil; }
 export function heroAttackAnim(now) {
   if (!heroAtk) return { active: false };
   const dur = heroAtk.mode === 'bow'
-    ? (BOW_FX_DUR.draw + BOW_FX_DUR.fly)
+    ? BOW_FX_DUR.draw + BOW_FX_DUR.fly + Math.max(...BOW_VOLLEYS[Math.min(2, heroAtk.stage)])
     : SPEAR_FX_DUR[heroAtk.stage];
   const t = (now - heroAtk.at) / 1000;
   if (t < 0 || t >= dur / speed) return { active: false };
@@ -538,5 +542,113 @@ function drawSpearStage(ctx, a, q) {
   }
 }
 
-// 弓三档演出（Task3 实现；占位保证 mode=bow 不误画枪）
-function drawBowStage(ctx, a, q, now) {}
+// ===== M11 弓三档演出：拉弓（金弓弧+墨弦+弦上箭）→ 飞行（墨杆金羽；贰双发/叁三连上弧）→ 命中（三层墨花晕开+溅射环）=====
+// 弓箭 j 的落点偏移（相对主目标）：壹/贰打主点（贰第二箭微偏），叁三箭错落溅射圈内
+function bowLanding(a, j, stage) {
+  if (stage !== 2) return j === 0 ? [0, 0] : [8, -6];
+  const r = (a.splash || {}).r || 90;
+  return [[0, 0], [-r * 0.4, r * 0.35], [r * 0.35, -r * 0.3]][j];
+}
+
+function drawBowStage(ctx, a, q, now) {
+  const stage = Math.min(2, a.stage || 0);
+  const draw = BOW_FX_DUR.draw, fly = BOW_FX_DUR.fly;
+  if (a.t < draw) { drawBowDraw(ctx, a, a.t / draw); return; } // 拉弓段
+  const dx = a.x - HERO_POS.x, dy = a.y - HERO_POS.y; // 相对主目标（ctx 已 translate 到英雄）
+  const delays = BOW_VOLLEYS[stage];
+  for (let j = 0; j < delays.length; j++) {
+    const f = (a.t - draw - delays[j]) / fly; // 该箭飞行进度
+    if (f <= 0) continue;
+    const fq = f * 1.25; // 1.25：命中花从飞行后 20% 起晕开，箭到（f=1）时恰花隐
+    const [ox, oy] = bowLanding(a, j, stage);
+    if (fq < 1) drawBowArrow(ctx, dx + ox, dy + oy, f, stage === 2); // 箭在途
+    else drawBowImpact(ctx, dx + ox, dy + oy, fq - 1);
+  }
+  if (a.splash && a.t >= draw + 0.8 * fly) { // 溅射环：首箭及体晕开起显形，至演出收线性淡出
+    const k = Math.max(0, 1 - (a.t - (draw + 0.8 * fly)) / (a.dur - draw - 0.8 * fly));
+    if (k > 0) {
+      ctx.strokeStyle = `rgba(201,162,39,${(k * 0.5).toFixed(3)})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.arc(dx, dy, a.splash.r, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// 拉弓段：鎏金弓身弧（开口朝前）+ 墨弦 V 形后拉 + 弦上箭（墨杆朱砂镞，pull→1 离弦）
+function drawBowDraw(ctx, a, pull) {
+  ctx.save();
+  ctx.rotate(a.ang);
+  ctx.strokeStyle = BOW_GOLD;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(14, 0, 13, -1.15, 1.15);
+  ctx.stroke();
+  const tx = 14 + 13 * Math.cos(1.15), ty = 13 * Math.sin(1.15);
+  const nock = tx - 12 * pull;
+  ctx.strokeStyle = 'rgba(31,27,22,0.85)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(tx, -ty);
+  ctx.lineTo(nock, 0);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  ctx.strokeStyle = BOW_INK; // 弦上箭
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(nock, 0);
+  ctx.lineTo(nock + 22, 0);
+  ctx.stroke();
+  ctx.fillStyle = BOW_SEAL;
+  ctx.beginPath();
+  ctx.moveTo(nock + 28, 0);
+  ctx.lineTo(nock + 20, -3);
+  ctx.lineTo(nock + 20, 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// 单支飞行箭（墨杆金羽）：f 0→1 从英雄到落点 easeOut；loft=叁箭雨上弧抛物线
+function drawBowArrow(ctx, tx, ty, f, loft) {
+  const e = easeOut(f);
+  const py = ty - (loft ? Math.sin(Math.PI * f) * 46 : 0);
+  ctx.save();
+  ctx.translate(tx * e, py);
+  ctx.rotate(Math.atan2(py, tx * e + 1e-4));
+  ctx.strokeStyle = BOW_INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-7, 0);
+  ctx.lineTo(7, 0);
+  ctx.stroke();
+  ctx.strokeStyle = BOW_GOLD;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-7, 0); ctx.lineTo(-10.5, -3.2);
+  ctx.moveTo(-7, 0); ctx.lineTo(-10.5, 3.2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// 命中三层墨花（墨滴入水晕开）：bloom 0→0.25，内圈先绽外圈后散，随晕开同步淡出
+function drawBowImpact(ctx, x, y, bloom) {
+  const k = 1 - bloom / 0.25;
+  if (k <= 0) return;
+  const g = bloom / 0.25;
+  const rings = [
+    { r: 5, g: 9, a: 0.5, w: 2.2 },
+    { r: 11, g: 15, a: 0.28, w: 1.4 },
+    { r: 18, g: 22, a: 0.14, w: 1 },
+  ];
+  for (const rg of rings) {
+    ctx.strokeStyle = `rgba(31,27,22,${(rg.a * k).toFixed(3)})`;
+    ctx.lineWidth = rg.w;
+    ctx.beginPath();
+    ctx.arc(x, y, rg.r + rg.g * g, 0, TAU);
+    ctx.stroke();
+  }
+}
