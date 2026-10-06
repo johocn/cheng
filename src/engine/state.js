@@ -32,6 +32,7 @@ export function createBattle(seed = 20260304, opts = {}) {
     hero: { pos: { ...HERO_POS }, atkCooldown: 0 },
     atkBuffT: 0, shieldT: 0,
     ult: null,
+    combo: 0, lastKillClock: -999, // M9 连击：窗口内击杀递增，漏怪扣血清零
     leechCount: 0,     // 饮血已结算次数（killCount/10 的增量差）
     stats: { mergeCount: 0, ultCount: 0, bossKills: 0 }, // M6 任务埋点（战斗结束由 core 上报）
     frameEvents: [],   // M8 只读事件流（每帧重置，渲染层消费后即弃）
@@ -112,6 +113,7 @@ export function advanceFrame(state, inputs, dtMs) {
         if (work.shieldT <= 0) {          // 玄武护盾免伤（enemy.js 不感知 shield）
           for (const l of leaked) {
             work.hp -= l.dmg;
+            work.combo = 0; // M9：漏怪断连击（免伤不扣不清零，口径同免伤不发事件）
             (work.frameEvents = work.frameEvents || []).push({ // M8：漏怪事件（免伤不发）
               type: 'leak', x: HERO_POS.x, y: HERO_POS.y, dmg: l.dmg,
               crit: false, enemyType: l.type, isBoss: l.type === 'shuai',

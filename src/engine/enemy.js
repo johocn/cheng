@@ -1,5 +1,5 @@
 // engine/enemy.js — 敌人生成 / 沿路径移动 / 漏怪判定
-import { LANES, ENEMY_TYPES, SIEGE_RANGE, SIEGE_INTERVAL, SIEGE_DMG } from './config.js';
+import { LANES, ENEMY_TYPES, SIEGE_RANGE, SIEGE_INTERVAL, SIEGE_DMG, COMBO_WINDOW } from './config.js';
 
 // 路径几何只读，模块级缓存（不依赖 state，不影响纯度）
 const laneCache = new Map();
@@ -104,6 +104,11 @@ export function reapDead(state) {
     if (e.hp <= 0) {
       state.coins += ENEMY_TYPES[e.type].reward;
       state.killCount = (state.killCount || 0) + 1;
+      // M9 连击：窗口内递增，超窗归零重计（旧式 state 缺字段时按超窗处理，零回归）
+      const gap = (state.stageClock ?? Infinity) - (state.lastKillClock ?? -Infinity);
+      if (gap > COMBO_WINDOW || state.combo == null) state.combo = 0;
+      state.combo += 1;
+      state.lastKillClock = state.stageClock ?? state.lastKillClock;
       const p = pathPoint(e.lane, e.t);
       (state.frameEvents = state.frameEvents || []).push({
         type: 'kill', x: p.x, y: p.y, dmg: 0, crit: false,

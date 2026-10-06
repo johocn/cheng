@@ -216,3 +216,14 @@ export const ROGUE_SKILLS = [
   { id: 'leech', name: '饮血', rarity: 2, weight: 10, desc: '每 10 杀回复 1 守军' },
   { id: 'drop',  name: '神机', rarity: 2, weight: 10, desc: '锦囊掉落间隔 -20%' },
 ];
+
+// ===== M9 连击 + Boss 技能 =====
+export const COMBO_WINDOW = 2.0; // 连击窗口秒：距上次击杀超过则归零重计
+export const BOSS_SKILL = {
+  name: '横扫千军', // 气泡台词「看我横扫千军！」
+  cd: 8,            // 结算/打断后冷却秒
+  telegraph: 1.4,   // 前摇警示秒（期间可被眩晕/击退打断）
+  arc: 110,         // 扇形张角度（朝英雄方向 ±55°）
+  range: 200,       // 扇形半径（逻辑像素）
+  dmg: 2,           // 命中扣守军耐久（受玄武护盾免伤，口径同漏怪）
+};
