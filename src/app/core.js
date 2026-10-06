@@ -4,7 +4,7 @@ import { createBattle, advanceFrame } from '../engine/state.js';
 import { LOGICAL_W, LOGICAL_H, ULT_JICE_COST } from '../engine/config.js';
 import { countJice } from '../engine/ult.js'; // 计策不足点大招的 toast 反馈
 import { createRng } from '../engine/rng.js';
-import { drawBattle } from '../render/battle.js';
+import { drawBattle, CHEST_CARDS } from '../render/battle.js';
 import { drawHome, hitHome } from '../render/home.js';
 import { drawResult, hitResult } from '../render/result.js';
 import { drawDetail, hitDetail, drawGacha, hitGacha } from '../render/metaScreens.js';
@@ -78,7 +78,8 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
         // M7 战斗输入音效：选卡=技能三连 / 锦囊槽=木鱼合成 / 大招=战鼓（输入驱动一次一响，天然无同帧重复）
         const pin = battleState.pendingInputs;
         if (pin) {
-          if (pin.pickSkill !== undefined) sfx('skill');
+          if (pin.pickChest !== undefined) sfx('coin'); // M10 开箱入账音
+          else if (pin.pickSkill !== undefined) sfx('skill');
           else if (pin.clickSlot !== undefined) sfx('compose');
           else if (pin.useUlt) {
             const n = countJice(battleState);
@@ -108,8 +109,18 @@ export function createApp({ ctx, showRewarded, purchase = () => {}, getSpeed = (
     return null;
   }
 
-  // M2 战斗 hitTest 原样保留（git ee41870）：三选一卡 / 锦囊槽 / 大招圆
+  // M2 战斗 hitTest 原样保留（git ee41870）：宝箱三卡 / 三选一卡 / 锦囊槽 / 大招圆
   function hitBattle(x, y, st) {
+    // M10 宝箱三卡: y 320..572, 三等分 176 宽 → pickChest 0/1/2（与 CHEST_CARDS 同源）
+    if (st.stage === 'chestPick' && st.chestChoices) {
+      if (y >= CHEST_CARDS.y && y <= CHEST_CARDS.y + CHEST_CARDS.h) {
+        for (let i = 0; i < 3; i++) {
+          const cx0 = CHEST_CARDS.x0 + i * CHEST_CARDS.step;
+          if (x >= cx0 && x <= cx0 + CHEST_CARDS.w) return { pickChest: i };
+        }
+      }
+      return null;
+    }
     // skillPick 三卡: (72..648, 216..468) 三等分 176 宽 → pickSkill 0/1/2
     if (st.stage === 'skillPick' && st.pickChoices) {
       if (y >= 216 && y <= 468) {

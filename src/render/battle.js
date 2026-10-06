@@ -3,6 +3,7 @@
 import {
   LOGICAL_W, LOGICAL_H, LANES, HERO_POS,
   TOTAL_WAVES, ITEM_TYPES, ROGUE_SKILLS, RARITY_NAMES, ULT_JICE_COST,
+  CHEST_REWARDS,
 } from '../engine/config.js';
 import { pathPoint } from '../engine/enemy.js';
 import { countJice, canUlt } from '../engine/ult.js';
@@ -48,6 +49,7 @@ export function drawBattle(ctx, state) {
   if (state.ult) drawUltCinematic(ctx, state);
   if (shaken2) battleFx.endShake(ctx);
   if (shaken1) ctx.restore();
+  if (state.stage === 'chestPick' && state.chestChoices) drawChestPick(ctx, state);
   if (state.stage === 'skillPick' && state.pickChoices) drawSkillPick(ctx, state);
 }
 
@@ -307,6 +309,104 @@ function drawUltButton(ctx, state) {
     ctx.font = '13px ' + KAI;
     ctx.fillText(`计策 ${n}/${ULT_JICE_COST}`, ULT_CX, ULT_CY + 1);
   }
+  ctx.restore();
+}
+
+// ===== M10 宝箱三选一（Boss 波前战前犒赏）=====
+// 三卡区域常量：core.hitBattle 引用同一常量保证命中与绘制一致
+export const CHEST_CARDS = { x0: 72, step: 200, y: 320, w: 176, h: 252 };
+const CHEST_BRONZE = '#b8963e';
+
+// 面板：暗幕 + 面板(60,88,600,560) + 标题 + 宝箱微浮 + 三横卡 + 提示语
+export function drawChestPick(ctx, state) {
+  if (state.stage !== 'chestPick' || !state.chestChoices) return;
+  const Art = globalThis.Art;
+  ctx.save();
+  ctx.fillStyle = 'rgba(31,27,22,0.92)';
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  Art.drawPanel(ctx, 60, 88, 600, 560, false);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = Art.C.ink;
+  ctx.font = 'bold 40px ' + KAI;
+  ctx.fillText('战 前 犒 赏', 360, 152);
+  drawChestBox(ctx, state.frame / 60);
+  for (let i = 0; i < 3; i++) {
+    const reward = CHEST_REWARDS.find((r) => r.id === state.chestChoices[i]);
+    if (reward) drawChestCard(ctx, CHEST_CARDS.x0 + i * CHEST_CARDS.step, CHEST_CARDS.y, CHEST_CARDS.w, CHEST_CARDS.h, reward);
+  }
+  ctx.fillStyle = Art.C.inkSoft;
+  ctx.font = '16px ' + KAI;
+  ctx.fillText('—— 点选犒赏 · 再点兵法出征 ——', 360, 620);
+  ctx.restore();
+}
+
+// 宝箱：木箱 + 圆角盖 + 双铜箍 + 铜锁，frame 驱动 sin 微浮（零状态确定性）
+function drawChestBox(ctx, t) {
+  const bob = Math.sin(t * 2) * 4;
+  ctx.save();
+  ctx.translate(360, 205 + bob);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#6b4d1d';
+  ctx.fillStyle = '#96703a'; // 箱体
+  ctx.fillRect(-75, 30, 150, 62);
+  ctx.strokeRect(-75, 30, 150, 62);
+  const Art = globalThis.Art;
+  Art.roundRect(ctx, -83, -15, 166, 50, 12); // 盖
+  ctx.fillStyle = '#a5793f';
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = CHEST_BRONZE; // 双铜箍（跨盖体）
+  ctx.fillRect(-48, -15, 18, 107);
+  ctx.fillRect(30, -15, 18, 107);
+  ctx.strokeRect(-48, -15, 18, 107);
+  ctx.strokeRect(30, -15, 18, 107);
+  ctx.fillRect(-12, 22, 24, 28); // 铜锁
+  ctx.strokeRect(-12, 22, 24, 28);
+  ctx.fillStyle = '#6b4d1d'; // 锁孔
+  ctx.beginPath();
+  ctx.arc(0, 34, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// 犒赏卡：与兵法卡同构（纸渐变 + 铜色顶条 + 名 + desc + 「犒 赏」pill）
+function drawChestCard(ctx, x, y, w, h, reward) {
+  const Art = globalThis.Art;
+  ctx.save();
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, Art.C.paperHi);
+  g.addColorStop(1, Art.C.paper);
+  Art.roundRect(ctx, x, y, w, h, 10);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = CHEST_BRONZE;
+  Art.roundRect(ctx, x, y, w, h, 10);
+  ctx.stroke();
+  ctx.save(); // 顶条 10px（铜色，随卡圆角裁切）
+  Art.roundRect(ctx, x, y, w, h, 10);
+  ctx.clip();
+  ctx.fillStyle = CHEST_BRONZE;
+  ctx.fillRect(x, y, w, 10);
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = Art.C.ink;
+  ctx.font = 'bold 34px ' + KAI;
+  ctx.fillText(reward.name, x + w / 2, y + 76);
+  ctx.fillStyle = Art.C.inkMid;
+  ctx.font = '17px ' + KAI;
+  wrapText(ctx, reward.desc, x + w / 2, y + 132, w - 26, 24);
+  const pill = '犒 赏';
+  ctx.font = 'bold 13px ' + KAI;
+  const pw = ctx.measureText(pill).width + 22;
+  const py = y + h - 42;
+  Art.roundRect(ctx, x + w / 2 - pw / 2, py, pw, 24, 12);
+  ctx.fillStyle = CHEST_BRONZE;
+  ctx.fill();
+  ctx.fillStyle = '#f4ecd8';
+  ctx.fillText(pill, x + w / 2, py + 13);
   ctx.restore();
 }
 
