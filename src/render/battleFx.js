@@ -3,7 +3,7 @@
 import { sfx } from '../platform/audio.js';
 import * as particles from './particles.js';
 import * as cinematic from './cinematic.js';
-import { HERO_POS, BOSS_SKILL, CHAPTER_PACKS } from '../engine/config.js';
+import { HERO_POS, BOSS_SKILL, CHAPTER_PACKS, ELITE_FX, AFFIX_COLORS, AFFIXES } from '../engine/config.js';
 import { pathPoint } from '../engine/enemy.js';
 
 const HIT = { normal: 30, crit: 50, kill: 70, cap: 120 };
@@ -19,6 +19,7 @@ let heroAtk = null;       // { at, ang }
 let prevUltT = -1;        // 大招分镜节点检测
 let comboJumpAt = 0;      // M9 连击弹跳起点（kill 事件重置）
 let bossFlash = null;     // M9 Boss 技能结算闪现 { x, y, at }（事件携带 Boss 坐标）
+let eliteList = [];       // M10 精英武印 { x, y, affix, born, minor }（born=consume now 口径）
 
 export function setSpeed(s) { speed = Math.max(1, Math.min(10, s)); }
 
@@ -43,6 +44,7 @@ export function reset() {
   prevUltT = -1;
   comboJumpAt = 0;
   bossFlash = null;
+  eliteList = [];
   cinematic.reset();
   particles.reset();
 }
@@ -144,6 +146,9 @@ export function consume(events, state, now) {
     } else if (ev.type === 'bossSkill') { // M9：横扫结算——扇形闪现加深 + 小幅屏震
       bossFlash = { x: ev.x, y: ev.y, at: now };
       addShake(4, 250);
+    } else if (ev.type === 'elite') { // M10：精英武印——同屏活跃达上限则降级头顶色点（born 用 now 口径）
+      const active = eliteList.filter((f) => !f.minor && now - f.born < (ELITE_FX.dur * 1000) / speed).length;
+      eliteList.push({ x: ev.x, y: ev.y, affix: ev.affix, born: now, minor: active >= ELITE_FX.maxActive });
     } else if (ev.type === 'boss') {
       const title = state.mode === 'bossrush'
         ? `车轮战 · 第${state.bossRound || 1}轮`
@@ -318,6 +323,56 @@ export function drawBossSkill(ctx, state, now) {
     drew = true;
   }
   return drew;
+}
+
+// ===== M10 精英武印盖章 =====
+const ELITE_INK = '#f4ecd8'; // 印面字色（纸色）
+
+// 武印层（battle.js 敌人层后调用，印章罩住敌人语义）：
+// 印章 q：0-25% 盖下（scale 2.1→1 ease-out + rotate -14°→-5°）、25-80% 停留、80-100% 淡出；
+// 降级 minor 只画头顶词缀色点。惰性过期清理（q≥1 移除）。不吞帧、不屏震。
+export function drawEliteSpawns(ctx, now) {
+  if (!eliteList.length) return;
+  eliteList = eliteList.filter((f) => {
+    const life = (f.minor ? ELITE_FX.minorDur : ELITE_FX.dur) * 1000 / speed;
+    return now - f.born < life;
+  });
+  for (const f of eliteList) {
+    const life = (f.minor ? ELITE_FX.minorDur : ELITE_FX.dur) * 1000 / speed;
+    const q = (now - f.born) / life;
+    if (q < 0 || q >= 1) continue;
+    const color = AFFIX_COLORS[f.affix] || AFFIX_COLORS.iron;
+    ctx.save();
+    if (f.minor) { // 降级：头顶色点（半程淡出）
+      ctx.globalAlpha = 0.85 * (1 - q * 0.5);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y - 44, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      continue;
+    }
+    let s = 1, rot = -5, alpha = 1;
+    if (q < 0.25) { // 盖下段
+      const k = q / 0.25;
+      s = 2.1 - 1.1 * (1 - Math.pow(1 - k, 3));
+      rot = -14 + 9 * k;
+    } else if (q >= 0.8) { // 淡出段
+      alpha = 1 - (q - 0.8) / 0.2;
+    }
+    ctx.globalAlpha = alpha;
+    ctx.translate(f.x, f.y);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.scale(s, s);
+    ctx.fillStyle = color;
+    ctx.fillRect(-26, -26, 52, 52);
+    ctx.fillStyle = ELITE_INK;
+    ctx.font = 'bold 34px "KaiTi","STKaiti","楷体",serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((AFFIXES[f.affix] || {}).label || '精', 0, 2);
+    ctx.restore();
+  }
 }
 
 // 台词气泡：墨底白字「看我横扫千军！」，warn 前 0.25s 上浮滑入（气泡仅 warn 段）
