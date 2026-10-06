@@ -57,16 +57,25 @@ const SFX = {
   hit:     () => tone(320, 0.05, 'triangle', 0.5, 0, 160), // M8 命中短噗
   kill:    () => { tone(180, 0.12, 'sine', 0.8, 0, 60); tone(90, 0.16, 'square', 0.3, 0.02, 45); }, // M8 击杀低沉
   drum:    () => { tone(60, 0.4, 'sine', 1.0, 0, 38); tone(120, 0.2, 'triangle', 0.5, 0.04, 80); }, // M8 大招战鼓
+  // ===== M12 普攻出手音（C 混合派：枪低音区/弓高音区，层数随档递进；sc=时间缩放，快进 ÷speed）=====
+  spear1: (sc = 1) => { tone(380, 0.08 * sc, 'triangle', 0.55, 0, 190); tone(1200, 0.05 * sc, 'sine', 0.25, 0, 600); },
+  spear2: (sc = 1) => { tone(380, 0.08 * sc, 'triangle', 0.55, 0, 190); tone(1200, 0.05 * sc, 'sine', 0.25, 0, 600); tone(240, 0.12 * sc, 'sawtooth', 0.3, 0, 120); },
+  spear3: (sc = 1) => { tone(180, 0.16 * sc, 'triangle', 0.5, 0, 560); tone(90, 0.1 * sc, 'square', 0.3, 0, 45); },
+  spear4: (sc = 1) => { tone(70, 0.35 * sc, 'sine', 0.8, 0); tone(140, 0.2 * sc, 'square', 0.25, 0); tone(520, 0.12 * sc, 'triangle', 0.2, 0, 260); },
+  bow1:   (sc = 1) => { tone(880, 0.09 * sc, 'sine', 0.5, 0); tone(1400, 0.12 * sc, 'triangle', 0.3, 0, 700); },
+  // 齐射错相 0.12/0.08 对齐 render/battleFx.js 的 BOW_VOLLEYS 演出（platform 不引 engine，字面量同步维护）
+  bow2:   (sc = 1) => [0, 0.12].forEach((w) => { tone(880, 0.09 * sc, 'sine', 0.5, w * sc); tone(1400, 0.12 * sc, 'triangle', 0.3, w * sc, 700); }),
+  bow3:   (sc = 1) => [0, 0.08, 0.16].forEach((w) => { tone(880, 0.09 * sc, 'sine', 0.5, w * sc); tone(1400, 0.12 * sc, 'triangle', 0.3, w * sc, 700); }),
 };
 
 const lastPlay = {};
 
-export function sfx(name) {
+export function sfx(name, sc = 1) {
   if (!ac || !soundOn || !SFX[name]) return;
   const now = Date.now(); // wx 无 performance.now，统一 Date.now
   if (lastPlay[name] && now - lastPlay[name] < 60) return; // M8 限频防噪（60ms 同名冷却）
   lastPlay[name] = now;
-  SFX[name]();
+  SFX[name](sc); // M12：新配方接 sc（时间缩放），现有配方无参忽略
 }
 
 // ===== BGM：五声音阶宫调式 16 小节循环（古琴拟音：基频+2次泛音指数衰减，tempo 72）
