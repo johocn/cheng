@@ -65,6 +65,11 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = nul
     burnMul: 1 + (state.burnBonus || 0), // M7 周瑜被动：灼烧增伤乘区（enemy.js 灼烧结算已乘 burnMul）
   };
   state.enemies.push(e);
+  if (affix && type !== 'shuai') { // M10：精英武印盖章事件（shuai 除外——Boss 卷轴已足够，避免重复演出）
+    (state.frameEvents = state.frameEvents || []).push({
+      type: 'elite', affix, x: LANES[laneIdx][0].x, y: LANES[laneIdx][0].y,
+    });
+  }
   if (type === 'shuai') { // M9：技能状态机（null=冷却 | 'warn'=前摇）+ M8：登场事件（卷轴/屏震触发）
     e.skill = { clock: 0, phase: null, t0: 0 };
     (state.frameEvents = state.frameEvents || []).push({

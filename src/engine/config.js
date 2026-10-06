@@ -36,6 +36,14 @@ export const AFFIXES = {
 };
 export const AFFIX_KEYS = ['iron', 'swift', 'sharp'];
 
+// ===== M10 精英词缀出场演出 =====
+export const ELITE_FX = {
+  dur: 0.5,        // 印章全程秒（÷speed；0-25% 盖下、25-80% 停留、80-100% 淡出）
+  maxActive: 3,    // 同屏活跃印章上限，超出降级头顶色点
+  minorDur: 0.8,   // 降级色点秒
+};
+export const AFFIX_COLORS = { iron: '#1f1b16', swift: '#5f8272', sharp: '#9e2a1e' };
+
 // 三条进攻路径（折线拐点），均终于 HERO_POS
 export const LANES = [
   [{ x: 360, y: -40 }, { x: 360, y: 640 }],
