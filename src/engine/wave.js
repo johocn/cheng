@@ -77,7 +77,9 @@ export function updateWave(state, dtS) {
       state.stage = 'skillPick'; // 无尽永不 victory
     } else {
       state.stage = state.mode === 'bossrush' ? 'skillPick' // 车轮战无限轮，仅 hp≤0 结束
-        : state.wave >= TOTAL_WAVES ? 'victory' : 'skillPick';
+        : state.wave >= TOTAL_WAVES ? 'victory'
+        : BOSS_WAVES.includes(state.wave + 1) ? 'chestPick' // M10：BOSS 波前宝箱三选一（先犒赏后兵法）
+        : 'skillPick';
     }
   }
 }

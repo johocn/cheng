@@ -9,6 +9,7 @@ import { heroAttack } from './hero.js';
 import { startWave, updateWave } from './wave.js';
 import { tickSlots, useSlot } from './slot.js';
 import { rollThree, pickSkill, computeStats } from './rogue.js';
+import { rollChest, pickChest } from './chest.js';
 import { tryStartUlt, tickUlt, canUlt } from './ult.js';
 
 const TICK = 1000 / 60;   // 16.667ms 固定步长
@@ -27,7 +28,7 @@ export function createBattle(seed = 20260304, opts = {}) {
     rng: createRng(seed),
     slots: Array(8).fill(null), nextItemId: 1,
     slotTimer: 0,
-    skills: [], pickChoices: null,
+    skills: [], pickChoices: null, chestChoices: null,
     heroStat: computeStats([]),
     hero: { pos: { ...HERO_POS }, atkCooldown: 0 },
     atkBuffT: 0, shieldT: 0,
@@ -81,7 +82,12 @@ export function advanceFrame(state, inputs, dtMs) {
 
     // —— 玩家输入（一次输入只消费一次）——
     if (inputs) {
-      if (inputs.pickSkill !== undefined && work.stage === 'skillPick' && work.pickChoices) {
+      if (inputs.pickChest !== undefined && work.stage === 'chestPick' && work.chestChoices) {
+        pickChest(work, inputs.pickChest);
+        refreshStats(work);
+        work.stage = 'skillPick'; // M10：宝箱后紧接兵法三择（不 wave++）
+        inputs = null;
+      } else if (inputs.pickSkill !== undefined && work.stage === 'skillPick' && work.pickChoices) {
         pickSkill(work, inputs.pickSkill);
         refreshStats(work);
         work.wave++;
@@ -136,12 +142,17 @@ export function advanceFrame(state, inputs, dtMs) {
         break;
       }
       case 'skillPick':
+      case 'chestPick':
         break; // 冻结等待输入（不掉落、不移动、不计时）
     }
     if (work.hp <= 0) { work.hp = 0; work.stage = 'over'; break; }
   }
 
-  // 波清 → 弹三选一（updateWave 切 stage 后在此补抽卡）
+  // 波清 → 弹宝箱/三选一（updateWave 切 stage 后在此补抽）
+  if (work.stage === 'chestPick' && !work.chestChoices) {
+    rollChest(work);
+    work.stageClock = 0;
+  }
   if (work.stage === 'skillPick' && !work.pickChoices) {
     rollThree(work);
     work.stageClock = 0;

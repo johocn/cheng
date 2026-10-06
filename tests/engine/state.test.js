@@ -17,12 +17,17 @@ function runFrames(state, seconds, inputs) {
   return state;
 }
 
-// 自动玩家：skillPick 选「稀有度最高」的；大招就绪即放；锦囊冷却 3s 点一次（有合先合）
+// 自动玩家：宝箱选 0（任选皆正向增益）；skillPick 选「稀有度最高」的；大招就绪即放；锦囊冷却 3s 点一次（有合先合）
 function autoPlay(state, maxSeconds) {
   let elapsed = 0;
   let slotCd = 0;
   while (elapsed < maxSeconds) {
     if (state.stage === 'victory' || state.stage === 'over') break;
+    if (state.stage === 'chestPick' && state.chestChoices) {
+      state = advanceFrame(state, { pickChest: 0 }, 16.667); // M10：Boss 波前宝箱
+      elapsed += 0.016667;
+      continue;
+    }
     if (state.stage === 'skillPick' && state.pickChoices) {
       const r = { 0: 0, 1: 1, 2: 2 };
       const best = state.pickChoices.reduce(
