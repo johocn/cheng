@@ -33,6 +33,7 @@ export function drawBattle(ctx, state) {
   drawAmbient(ctx, state);
   drawGhosts(ctx, now);
   for (const e of state.enemies) drawEnemy(ctx, e, now);
+  battleFx.drawBossSkill(ctx, state, now); // M9：Boss 技能警示罩（罩住敌人语义）+ 结算闪现
   drawHero(ctx, state, now);
   drawHud(ctx, state);
   drawWaveProgress(ctx, state);

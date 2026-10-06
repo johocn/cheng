@@ -3,7 +3,8 @@
 import { sfx } from '../platform/audio.js';
 import * as particles from './particles.js';
 import * as cinematic from './cinematic.js';
-import { HERO_POS, CHAPTER_PACKS } from '../engine/config.js';
+import { HERO_POS, BOSS_SKILL, CHAPTER_PACKS } from '../engine/config.js';
+import { pathPoint } from '../engine/enemy.js';
 
 const HIT = { normal: 30, crit: 50, kill: 70, cap: 120 };
 
@@ -17,6 +18,7 @@ let leakFlashUntil = 0;
 let heroAtk = null;       // { at, ang }
 let prevUltT = -1;        // 大招分镜节点检测
 let comboJumpAt = 0;      // M9 连击弹跳起点（kill 事件重置）
+let bossFlash = null;     // M9 Boss 技能结算闪现 { x, y, at }（事件携带 Boss 坐标）
 
 export function setSpeed(s) { speed = Math.max(1, Math.min(10, s)); }
 
@@ -40,6 +42,7 @@ export function reset() {
   heroAtk = null;
   prevUltT = -1;
   comboJumpAt = 0;
+  bossFlash = null;
   cinematic.reset();
   particles.reset();
 }
@@ -138,6 +141,9 @@ export function consume(events, state, now) {
       if (ev.isBoss) cinematic.push({ kind: 'bossKill', dur: cinematic.DUR_KILL, data: { x: ev.x, y: ev.y, type: ev.enemyType } });
     } else if (ev.type === 'leak') {
       leakFlashUntil = now + 200 / speed; // 城门红闪
+    } else if (ev.type === 'bossSkill') { // M9：横扫结算——扇形闪现加深 + 小幅屏震
+      bossFlash = { x: ev.x, y: ev.y, at: now };
+      addShake(4, 250);
     } else if (ev.type === 'boss') {
       const title = state.mode === 'bossrush'
         ? `车轮战 · 第${state.bossRound || 1}轮`
@@ -255,5 +261,86 @@ export function drawCombo(ctx, state, now) {
   ctx.fillStyle = n >= 10 ? COMBO_SEAL : COMBO_INK;
   ctx.font = 'bold 46px "KaiTi","STKaiti","楷体",serif';
   ctx.fillText(`×${n}`, 0, 0);
+  ctx.restore();
+}
+
+// ===== M9 Boss 技能预警（淡赭浅渲，贴水墨主风格）=====
+const BOSS_WARN_INK = '#1f1b16';
+const BOSS_WARN_RED = '#b03a2e'; // 淡赭：低透明浅渲，禁浓艳
+
+// 扇形路径：顶点 (bx,by) 朝 facing 展开 BOSS_SKILL.range/arc
+function fanPath(ctx, bx, by, facing) {
+  const half = (BOSS_SKILL.arc * Math.PI) / 360;
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.arc(bx, by, BOSS_SKILL.range, facing - half, facing + half);
+  ctx.closePath();
+}
+
+// Boss 技能层（battle.js 敌人层之后调用：警示罩罩住敌人语义）。
+// warn 阶段：淡赭扇形（填充 α0.10 / 描边虚线 α0.32）+ 顶点墨点 + 台词气泡；
+// 结算帧（bossSkill 事件）：扇形闪现加深 150ms（α0.3→0）+ 消费侧小幅屏震。返回是否有绘制。
+export function drawBossSkill(ctx, state, now) {
+  let drew = false;
+  for (const e of (state && state.enemies) || []) {
+    if (e.type !== 'shuai' || !e.skill || e.skill.phase !== 'warn') continue;
+    const p = pathPoint(e.lane, e.t);
+    const facing = Math.atan2(HERO_POS.y - p.y, HERO_POS.x - p.x);
+    ctx.save();
+    fanPath(ctx, p.x, p.y, facing);
+    ctx.globalAlpha = 0.1; // 填充 ≤0.12：浅渲
+    ctx.fillStyle = BOSS_WARN_RED;
+    ctx.fill();
+    ctx.globalAlpha = 0.32; // 描边 ≤0.35
+    ctx.strokeStyle = BOSS_WARN_RED;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([10, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.35; // 顶点墨点
+    ctx.fillStyle = BOSS_WARN_INK;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    drawBossBubble(ctx, p.x, p.y, e.skill.clock);
+    drew = true;
+  }
+  if (bossFlash && now - bossFlash.at < 150 / speed) { // 结算闪现：无气泡
+    const facing = Math.atan2(HERO_POS.y - bossFlash.y, HERO_POS.x - bossFlash.x);
+    const q = (now - bossFlash.at) / (150 / speed);
+    ctx.save();
+    fanPath(ctx, bossFlash.x, bossFlash.y, facing);
+    ctx.globalAlpha = 0.3 * (1 - q); // 0.3 → 0 线性衰减
+    ctx.fillStyle = BOSS_WARN_RED;
+    ctx.fill();
+    ctx.restore();
+    drew = true;
+  }
+  return drew;
+}
+
+// 台词气泡：墨底白字「看我横扫千军！」，warn 前 0.25s 上浮滑入（气泡仅 warn 段）
+function drawBossBubble(ctx, bx, by, clock) {
+  const q = Math.max(0, Math.min(1, clock / 0.25));
+  const lift = (1 - q) * 14;
+  const w = 160, h = 30;
+  const x = bx - w / 2, y = by - 70 - lift;
+  ctx.save();
+  // 墨底圆角 pill（arcTo 手绘，避免 Art 依赖）
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y);
+  ctx.arcTo(x + w, y, x + w, y + h, 8);
+  ctx.arcTo(x + w, y + h, x, y + h, 8);
+  ctx.arcTo(x, y + h, x, y, 8);
+  ctx.arcTo(x, y, x + w, y, 8);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(31,27,22,0.88)';
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f4ecd8';
+  ctx.font = 'bold 17px "KaiTi","STKaiti","楷体",serif';
+  ctx.fillText('看我横扫千军！', bx, y + h / 2 + 1);
   ctx.restore();
 }
