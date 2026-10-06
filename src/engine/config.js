@@ -58,6 +58,22 @@ export const CHEST_SHIELD = 4;   // 护盾秒
 export const CHEST_ITEMS = 2;    // 入囊张数
 export const CHEST_ATK = 0.1;    // 攻击乘区增量
 
+// ===== M11 赵云攻击体系 v2：枪意四档（近战）+ 箭意三档（远程自动）=====
+// 枪档 bonus 为范围「增量」，叠加在技能算出的 heroStat.atkRange 上（×1.3^range 层乘区不受影响）
+export const SPEAR_STAGES = [
+  { wave: 1,  bonus: 0,  fx: 'thrust' },   // 壹 单枪突刺（现状保留）
+  { wave: 5,  bonus: 30, fx: 'pierce' },   // 贰 龙胆突刺：长枪残影+气浪
+  { wave: 9,  bonus: 60, fx: 'sweep' },    // 叁 横扫枪风：120° 扇形+鎏金飞白弧
+  { wave: 13, bonus: 90, fx: 'circle' },   // 肆 枪圈墨波：360° 枪影+射程环显形
+];
+export const BOW_RANGE = 320;    // 弓射程（枪圈内无目标时才出手）
+export const BOW_STAGES = [
+  { wave: 1, kind: 'single', mul: 1.2 },                              // 壹 穿云箭：单点大伤
+  { wave: 5, kind: 'double', mul: 0.8, splash: { r: 70, mul: 0.5 } }, // 贰 连珠箭
+  { wave: 9, kind: 'rain',   mul: 0.7, splash: { r: 110, mul: 0.35 } }, // 叁 箭雨
+];
+export const BOW_FX_DUR = { draw: 0.3, fly: 0.42 }; // 拉弓/箭飞行演出时长（秒）
+
 // 三条进攻路径（折线拐点），均终于 HERO_POS
 export const LANES = [
   [{ x: 360, y: -40 }, { x: 360, y: 640 }],
