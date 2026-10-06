@@ -16,6 +16,7 @@ let enemyFx = new Map();  // id → { hitAt, knockAt, dieAt, die:{type,x,y,affix
 let leakFlashUntil = 0;
 let heroAtk = null;       // { at, ang }
 let prevUltT = -1;        // 大招分镜节点检测
+let comboJumpAt = 0;      // M9 连击弹跳起点（kill 事件重置）
 
 export function setSpeed(s) { speed = Math.max(1, Math.min(10, s)); }
 
@@ -38,6 +39,7 @@ export function reset() {
   leakFlashUntil = 0;
   heroAtk = null;
   prevUltT = -1;
+  comboJumpAt = 0;
   cinematic.reset();
   particles.reset();
 }
@@ -124,6 +126,7 @@ export function consume(events, state, now) {
       fx.die = { type: ev.enemyType, x: ev.x, y: ev.y, affix: ev.affix || null }; // affix 随事件携带（state.enemies 里已被移除，查不到）
       enemyFx.set(ev.enemyId, fx);
       particles.blot(ev.x, ev.y);
+      comboJumpAt = now; // M9：连击弹跳起点重置
       if (ev.dmg > 0) {
         floatList.push({
           x: ev.x, y: ev.y - 30, text: String(Math.round(ev.dmg)),
@@ -208,4 +211,49 @@ export function drawFloatsPublic(ctx, now) {
     ctx.fillText(f.text, f.x, f.y - 40 * q);
   }
   ctx.globalAlpha = 1;
+}
+
+// ===== M9 连击 Combo =====
+const COMBO_INK = '#1f1b16';   // 墨字（固定常量：朱砂转色阈值测试确定性）
+const COMBO_SEAL = '#9e2a1e';  // ≥10 连的朱砂色
+
+// 弹跳缩放：kill 后 270ms 内三峰衰减振荡（1.45 → 1）；无动画恒 1
+export function comboScale(now) {
+  if (!comboJumpAt) return 1;
+  const t = (now - comboJumpAt) / (270 / speed);
+  if (t < 0 || t >= 1) return 1;
+  return 1 + 0.45 * Math.exp(-3.5 * t) * Math.cos(t * Math.PI * 3);
+}
+
+// 连击层（battle.js UI 层调用）：中央偏上「连 击」+「×N」弹跳 + 三圈墨点呼吸
+export function drawCombo(ctx, state, now) {
+  const n = (state && state.combo) || 0;
+  if (n < 2) return;
+  const CX = 360, CY = 360;
+  // 三圈墨点（数字下方呼吸扩散，相位错开）
+  ctx.save();
+  ctx.strokeStyle = COMBO_INK;
+  for (let i = 0; i < 3; i++) {
+    const breath = 0.6 + 0.4 * Math.sin(renderClock / 300 + i * 2.1);
+    ctx.globalAlpha = [0.5, 0.28, 0.14][i] * breath;
+    ctx.lineWidth = [2.5, 1.5, 1][i];
+    ctx.beginPath();
+    ctx.arc(CX, CY + 30, [7, 14, 21][i], 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // 数字弹跳（scale 变换）
+  const s = comboScale(now);
+  ctx.save();
+  ctx.translate(CX, CY);
+  ctx.scale(s, s);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = COMBO_INK;
+  ctx.font = '15px "KaiTi","STKaiti","楷体",serif';
+  ctx.fillText('连 击', 0, -34);
+  ctx.fillStyle = n >= 10 ? COMBO_SEAL : COMBO_INK;
+  ctx.font = 'bold 46px "KaiTi","STKaiti","楷体",serif';
+  ctx.fillText(`×${n}`, 0, 0);
+  ctx.restore();
 }

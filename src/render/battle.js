@@ -11,7 +11,7 @@ import { beginUltShake, drawUltCinematic } from './fx.js';
 import { pose, drawEnemyFigure, drawHeroSpear, figureHeight } from './animator.js';
 import * as battleFx from './battleFx.js';
 import * as particles from './particles.js';
-import { drawCinematic } from './cinematic.js';
+// 注：drawCinematic 的 import 与调用在 Task 8 接入（届时 cinematic.js 才导出该函数）
 
 const KAI = '"KaiTi","STKaiti","楷体",serif';
 // 元素色 / 稀有色（UI 定稿）
@@ -41,8 +41,8 @@ export function drawBattle(ctx, state) {
   drawStageBanner(ctx, state);
   drawLeakFlash(ctx, now);
   battleFx.drawFloatsPublic(ctx, now); // 飘字（battleFx 导出的绘制）
+  battleFx.drawCombo(ctx, state, now); // M9 连击（中央偏上弹跳计数，飘字层之上）
   particles.draw(ctx);
-  drawCinematic(ctx);                  // Boss 卷轴 / 斩杀慢镜（全屏演出最上层）
   if (state.ult) drawUltCinematic(ctx, state);
   if (shaken2) battleFx.endShake(ctx);
   if (shaken1) ctx.restore();
