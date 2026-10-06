@@ -85,3 +85,9 @@ export const BOSS_SKILL = {
 
 - 2026-10-06：立项。定稿 1A（Combo 弹跳计数）+ 2B（扇形警示+气泡，淡赭浅渲硬要求）。M8 基线：289 测试全绿、wx 包 525KB、HEAD 8a6f886（含 structuredClone wx 修复 8d3c8d2 与大招 toast 8a6f886）。
 - 2026-10-06 Task 3 校准：dmg 2→1（用户拍板）。集成验收种子 20260304 基线余量恰好 4 血 = 全程 2 次横扫×2，dmg=2 恰好打穿；已验证不改数值路线全不通（前摇窗口无玄武/大招/白虎资源、青龙优先无效、wall 优先 w8 即败）。其余数值（cd 8/前摇 1.4/范围 200/张角 110）不动。
+- 2026-10-06 Task 4 完成：battleFx 淡赭扇形（fill α0.10 ≤0.12 + 虚线 stroke α0.32 + 顶点墨点）+ 台词气泡「看我横扫千军！」（α 烘进颜色保证全局 α≤0.35 浅渲断言）+ 结算闪现屏震；battle.js drawEnemy 后接线（罩住敌人语义）。commit 6f0fb53。
+- 2026-10-06 Task 5 完成收口：
+  - **Task 1 遗留 bug 修复（commit 9e163d3）**：combo 递增原只挂在 reapDead（灼烧/锦囊/大招收口），而主力直伤击杀走 combat.dealDamage 就地 splice 移出，reapDead 永远收不到 → live 8 杀 combo 恒 0。vitest 全绿是假象（单测直调 reapDead、集成测试不断言 combo）。修复：抽 `registerKill(state, type)`（金币/计数/连击窗口）到 enemy.js，dealDamage 与 reapDead 共用，两路互斥不双计。补 3 用例（dealDamage 链路/防双计/advanceFrame 真实链路）。
+  - 全量 323/323 绿（44 文件）；wx 构建通过（game.js 108KB + heroes 423KB = 529KB）。
+  - 三镜手机截图（390×844 dpr=2）入库 docs/screenshots/m9/：m9-A-combo.png（连击 ×8 弹跳+墨点）、m9-B-boss-warn.png（淡赭扇形+台词气泡，浅渲贴水墨）、m9-C-interrupt.png（打断瞬间扇形消失+金色眩晕环）。截图方式：Playwright + `__debug` 注入受控状态（残血兵真击杀拿弹跳、warn 态 shuai、stunT 打断）。
+  - DEV 验收工具沉淀：URL `?speed=N` 快进；`window.__app.__debug(fn)` 页面内读写 battleState；cheng 为多容器结构，vite root 是 `src/containers/h5/`，`fetch('/src/engine/*.js')` 会拿 SPA fallback 假阴性，验证引擎源码需走本地 node import。
