@@ -14,9 +14,9 @@
 
 ---
 
-## ⚡ 执行进度交接快照（2026-10-06 换人交接，先读这段再动手）
+## ⚡ 执行进度交接快照（2026-10-06 M8 全部完成收口）
 
-**已完成 Task 1-6（全部已复核 + 已推送 origin/master），剩 Task 7/8/9：**
+**Task 1-9 全部完成（已复核 + 已推送 origin/master）：**
 
 | Task | 内容 | Commit | 用例数（实跑） |
 |------|------|--------|--------------|
@@ -26,6 +26,15 @@
 | 4 | cinematic 队列 + battleFx 全家桶 + audio 三音 + bossTitle | `9a724a0` | 277 |
 | 5 | battle.js 渲染接线 + 场景层次 | `142edff` | 285 |
 | 6 | core 吞帧时停接线 + 终态延后 | `850fc5a` | 285（无新 it）+ build:wx 首包 527KB ✓ |
+| 7 | 大招分镜 v2（聚雾/七段突刺/白闪/墨波朱印） | `0cb0940` | 289 |
+| 8 | Boss 卷轴 + 斩杀慢镜绘制 + battle.js 接线 | `f646557` | 289（+4 渲染用例含 mock ctx） |
+| 9 | 收口：双端构建 + 9 镜截图 + 帧抽检 + spec 标记 | 本次收口 commit | 289 全绿 |
+
+**Task 9 收口记录（2026-10-06）：**
+1. `build:wx` 修正：vite 8 (rolldown) 弃用 `minify:'esbuild'` → 改 `'oxc'`（scripts/build-wx.mjs），首包 **528KB** ✓（≤4MB）。
+2. 9 镜截图入库 `docs/screenshots/m8/`（390×844 dpr=2）：walk / hit / ult-gather / ult-thrust / ult-flash / ult-impulse / boss-scroll / boss-kill / shadow。
+3. rAF 帧时长抽检 100 帧：**avg 8.34ms / max 8.8ms / 超 17ms 为 0** ✓。
+4. spec 第八章 M8 行 ◐→✅。
 
 **对计划的已落地修正（后续任务必须沿用，勿回退）：**
 1. **渲染时钟双推进已修**：core.js loop battle 分支用 `battleFx.tick(0)` 取时不推进，`battleFx.update(dtMs)` 是渲染时钟唯一推进点（本计划 L2042 伪代码写错为 `tick(dtMs)`，已按修正落地，见 commit `850fc5a`）。
@@ -34,9 +43,10 @@
 4. Task 1 测试 leak 用例 t=0.9999（计划 0.999 按实算必挂）。
 5. `battleFx.activeGhosts/drawFloatsPublic` 为 Task 5 实际新增导出（计划未列）。
 
-**Task 8 注意**：`cinematic.js` 目前**未导出 drawCinematic**（battle.js 已留注释占位），Task 8 补齐后按计划接线。
-
-**Task 9 注意**：截图 9 张 390×844 dpr=2 入 `docs/screenshots/m8/`；browser_use 前必须激活 tab 防 rAF 节流；`__app.__debug` 注入技巧见计划 Step 9.3；完成后 spec 第八章 M8 行 ◐→✅。
+**截图调试经验（复用价值）：**
+- `skillPick 弹窗（drawBattle L49）画在 drawCinematic（L45）之后 → 盖住演出`：拍斩杀慢镜必须在 boss 死时留远处小兵垫场防波清，否则 0.92 暗幕弹窗遮死慢镜。
+- agent-browser CLI 单张截图有 300-500ms 进程开销，400ms 短演出六连拍也会系统性错过 → 卷轴类可注入 spawnQueue 等自然触发；慢镜类用「垫场小兵 + 瞬移 boss t=0.97 + hp=1」让真实击杀触发。
+- 动态 `import('/src/...')` 在 agent-browser eval 内不可用（Failed to fetch），注入演出别走模块路。
 
 ---
 

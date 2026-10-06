@@ -16,7 +16,7 @@ await build({
     outDir: 'src/containers/wx-mini/dist',
     emptyOutDir: true,
     target: 'es6', // 小游戏基础库基线
-    minify: 'esbuild',
+    minify: 'oxc', // vite 8 (rolldown) 内建 oxc 压缩；'esbuild' 已弃用且要求单独安装 esbuild
     lib: {
       entry: join(wxDir, 'game.js'),
       formats: ['iife'],
