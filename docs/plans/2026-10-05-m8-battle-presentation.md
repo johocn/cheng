@@ -46,7 +46,8 @@
 **截图调试经验（复用价值）：**
 - `skillPick 弹窗（drawBattle L49）画在 drawCinematic（L45）之后 → 盖住演出`：拍斩杀慢镜必须在 boss 死时留远处小兵垫场防波清，否则 0.92 暗幕弹窗遮死慢镜。
 - agent-browser CLI 单张截图有 300-500ms 进程开销，400ms 短演出六连拍也会系统性错过 → 卷轴类可注入 spawnQueue 等自然触发；慢镜类用「垫场小兵 + 瞬移 boss t=0.97 + hp=1」让真实击杀触发。
-- 动态 `import('/src/...')` 在 agent-browser eval 内不可用（Failed to fetch），注入演出别走模块路。
+- **eval 内动态 import 完全可用，但必须用 `/@fs/` URL**（2026-10-06 复核修正，此前误判为「不可用」）：vite.config.js `root: 'src/containers/h5'`，磁盘 `src/` 下模块不在 dev server root 内，`/src/...` 请求会 SPA fallback 返回 `text/html`（**状态码仍 200，勿以状态码判可达**）→ 浏览器 MIME 检查拒绝，报 "Failed to fetch dynamically imported module"。正确写法：`await import('/@fs/D:/zhao/cheng/src/render/cinematic.js')`（形式见 `fetch('/main.js')` 转换文本里的 import 语句，root 外文件一律 `/@fs/<盘符>:/...`）。同 URL import 命中浏览器模块缓存 = **游戏运行中的同一模块实例**（已实锤：push 的演出被游戏 drawCinematic 渲染），可直接注入/操纵 cinematic 队列调试截图。注意事项：① `startBattle` 每局调 `cinematic.reset()`，须先进战斗屏再 push；② `QUEUE_MAX=2`，长 dur 演出会堵队列（后续 push 排不上）；③ blob URL / `new Function` 之类构造的是**新实例**（URL 不同），对运行中队列无效。
+- 调试教训：判断"网络层失败 vs 内容层失败"必须查响应 `content-type` 与 body 前缀，fetch 200 + import 失败的组合十有八九是 fallback HTML 冒充模块。
 
 ---
 
