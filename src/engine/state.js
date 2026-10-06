@@ -60,6 +60,7 @@ export function refreshStats(state) {
   const prevMax = state.heroStat.hpMax;
   state.heroStat = computeStats(state.skills);
   state.heroStat.atk *= state.metaAtkMul || 1; // 局外乘区不因技能重算丢失（M3）
+  state.heroStat.atk *= 1 + (state.edgeAtk || 0); // M10 宝箱「锋芒」乘区同理保留
   state.hpMax = state.heroStat.hpMax;
   if (state.hpMax > prevMax) state.hp += state.hpMax - prevMax;
   if (state.hp > state.hpMax) state.hp = state.hpMax;

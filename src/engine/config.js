@@ -44,6 +44,20 @@ export const ELITE_FX = {
 };
 export const AFFIX_COLORS = { iron: '#1f1b16', swift: '#5f8272', sharp: '#9e2a1e' };
 
+// ===== M10 Boss 波前宝箱（战前犒赏三选一，池均等无稀有概念）=====
+export const CHEST_REWARDS = [
+  { id: 'troops', name: '犒赏三军', desc: '耐久 +3 并回复' },
+  { id: 'shield', name: '玄武庇佑', desc: '开战护盾 4 秒' },
+  { id: 'gold',   name: '金帛犒军', desc: '金币 +120' },
+  { id: 'items',  name: '计策入囊', desc: '随机锦囊 +2' },
+  { id: 'edge',   name: '锋芒',     desc: '攻击 +10%' },
+];
+export const CHEST_GOLD = 120;
+export const CHEST_HP = 3;
+export const CHEST_SHIELD = 4;   // 护盾秒
+export const CHEST_ITEMS = 2;    // 入囊张数
+export const CHEST_ATK = 0.1;    // 攻击乘区增量
+
 // 三条进攻路径（折线拐点），均终于 HERO_POS
 export const LANES = [
   [{ x: 360, y: -40 }, { x: 360, y: 640 }],
