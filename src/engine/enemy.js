@@ -1,5 +1,5 @@
 // engine/enemy.js — 敌人生成 / 沿路径移动 / 漏怪判定
-import { LANES, ENEMY_TYPES, SIEGE_RANGE, SIEGE_INTERVAL, SIEGE_DMG, COMBO_WINDOW } from './config.js';
+import { LANES, ENEMY_TYPES, SIEGE_RANGE, SIEGE_INTERVAL, SIEGE_DMG, COMBO_WINDOW, HERO_POS, BOSS_SKILL } from './config.js';
 
 // 路径几何只读，模块级缓存（不依赖 state，不影响纯度）
 const laneCache = new Map();
@@ -37,10 +37,20 @@ export function pathPoint(laneIdx, t) {
   return { x: last.bx, y: last.by };
 }
 
+// M9 Boss 技能扇形几何：顶点 (bx,by) 朝 facing 展开 arcDeg 张角、range 半径，判定点 (px,py) 是否在扇形内
+export function inArc(bx, by, px, py, facing, range = BOSS_SKILL.range, arcDeg = BOSS_SKILL.arc) {
+  const dx = px - bx, dy = py - by;
+  if (Math.hypot(dx, dy) > range) return false;
+  let ang = Math.atan2(dy, dx) - facing;
+  while (ang > Math.PI) ang -= 2 * Math.PI;
+  while (ang < -Math.PI) ang += 2 * Math.PI;
+  return Math.abs(ang) <= (arcDeg / 2) * (Math.PI / 180);
+}
+
 export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = null) {
   const def = ENEMY_TYPES[type];
   const iron = affix === 'iron' ? 1.6 : 1;
-  state.enemies.push({
+  const e = {
     id: state.nextEnemyId++,
     type,
     lane: laneIdx,
@@ -53,8 +63,10 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = nul
     siegeClock: 0, // 投石车轰击计时
     slowT: 0, stunT: 0, burnT: 0,
     burnMul: 1 + (state.burnBonus || 0), // M7 周瑜被动：灼烧增伤乘区（enemy.js 灼烧结算已乘 burnMul）
-  });
-  if (type === 'shuai') { // M8：Boss 登场事件（卷轴/屏震触发）
+  };
+  state.enemies.push(e);
+  if (type === 'shuai') { // M9：技能状态机（null=冷却 | 'warn'=前摇）+ M8：登场事件（卷轴/屏震触发）
+    e.skill = { clock: 0, phase: null, t0: 0 };
     (state.frameEvents = state.frameEvents || []).push({
       type: 'boss', x: LANES[laneIdx][0].x, y: LANES[laneIdx][0].y,
       dmg: 0, crit: false, enemyType: 'shuai', isBoss: true,
@@ -62,13 +74,39 @@ export function spawnEnemy(state, type, laneIdx, mul = 1, hpMul = 1, affix = nul
   }
 }
 
-// 推进所有敌人（含 stun 冻结 / slow 减速 / burn 灼烧）；
+// 推进所有敌人（含 stun 冻结 / slow 减速 / burn 灼烧 / M9 Boss 技能状态机）；
 // t≥1 的判定漏怪并移出，返回 [{type, dmg}]——扣血由 state.js 统一结算（shield 免伤）
 export function moveEnemies(state, dtSec) {
   const leaked = [];
   const survivors = [];
   for (const e of state.enemies) {
+    // M9 Boss 技能：warn 前摇被眩晕/击退（t 回退）→ 打断取消，cd 重置满（打断即有收益）
+    if (e.skill && e.skill.phase === 'warn' && (e.stunT > 0 || e.t < e.skill.t0 - 1e-6)) {
+      e.skill.phase = null;
+      e.skill.clock = 0;
+    }
     if (e.stunT > 0) { e.stunT -= dtSec; survivors.push(e); continue; }
+    if (e.skill) { // M9 Boss 技能状态机（stun 分支已天然冻结计时）
+      const p = pathPoint(e.lane, e.t);
+      if (e.skill.phase === null) {
+        e.skill.clock += dtSec;
+        // 冷却满 + 已逼近英雄（≤ range×0.9）才起手
+        if (e.skill.clock >= BOSS_SKILL.cd &&
+            Math.hypot(HERO_POS.x - p.x, HERO_POS.y - p.y) <= BOSS_SKILL.range * 0.9) {
+          e.skill.phase = 'warn'; e.skill.clock = 0; e.skill.t0 = e.t;
+        }
+      } else {
+        e.skill.clock += dtSec;
+        if (e.skill.clock >= BOSS_SKILL.telegraph) {
+          // 结算：扇形朝英雄展开，英雄恒在张角内；距离超 range（击退后）则空放不扣
+          const facing = Math.atan2(HERO_POS.y - p.y, HERO_POS.x - p.x);
+          if (inArc(p.x, p.y, HERO_POS.x, HERO_POS.y, facing)) {
+            leaked.push({ type: e.type, dmg: BOSS_SKILL.dmg, skill: true, x: p.x, y: p.y });
+          }
+          e.skill.phase = null; e.skill.clock = 0; // 结算/空放后 cd 重置
+        }
+      }
+    }
     if (e.slowT > 0) { e.slowT -= dtSec; }
     if (e.burnT > 0) {
       e.burnT -= dtSec;

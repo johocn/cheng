@@ -113,11 +113,18 @@ export function advanceFrame(state, inputs, dtMs) {
         if (work.shieldT <= 0) {          // 玄武护盾免伤（enemy.js 不感知 shield）
           for (const l of leaked) {
             work.hp -= l.dmg;
-            work.combo = 0; // M9：漏怪断连击（免伤不扣不清零，口径同免伤不发事件）
-            (work.frameEvents = work.frameEvents || []).push({ // M8：漏怪事件（免伤不发）
-              type: 'leak', x: HERO_POS.x, y: HERO_POS.y, dmg: l.dmg,
-              crit: false, enemyType: l.type, isBoss: l.type === 'shuai',
-            });
+            if (l.skill) { // M9 Boss 技能命中：非漏怪，不清连击
+              (work.frameEvents = work.frameEvents || []).push({
+                type: 'bossSkill', x: l.x, y: l.y, dmg: l.dmg,
+                crit: false, enemyType: l.type, isBoss: true,
+              });
+            } else {
+              work.combo = 0; // M9：漏怪断连击（免伤不扣不清零，口径同免伤不发事件）
+              (work.frameEvents = work.frameEvents || []).push({ // M8：漏怪事件（免伤不发）
+                type: 'leak', x: HERO_POS.x, y: HERO_POS.y, dmg: l.dmg,
+                crit: false, enemyType: l.type, isBoss: l.type === 'shuai',
+              });
+            }
           }
         }
         tickSlots(work, dt * work.heroStat.dropMul);
